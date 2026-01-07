@@ -88,9 +88,75 @@ export function generateBaseContract(sale?: SaleProcess): string {
 
   // Fechamento
   html += `<p>E, por estarem assim justas e contratadas, assinam o presente contrato.</p>`;
-  html += `<p>${property.address_city}, ${formattedDate}.</p>`;
+  html += `<p>${property.address_city}, ${formattedDate}.</p>
+  
+  <br><br>
+
+  <p><strong>Prom. Vendedoras:</strong></p>
+  <table class="signature-table">
+    <tbody>
+      ${generateSignatureRows(
+    sellers.length > 0
+      ? sellers.map(s => `<p class="signature-name">${s.client.name}</p>`)
+      : [`<p class="signature-name">${seller.name || "[NOME DO VENDEDOR]"}</p>`]
+  )}
+    </tbody>
+  </table>
+
+  <p><strong>Prom. Comprador:</strong></p>
+  <table class="signature-table">
+    <tbody>
+      ${generateSignatureRows([`<p class="signature-name">${buyer.name || "[NOME DO COMPRADOR]"}</p>`])}
+    </tbody>
+  </table>
+
+  <p><strong>Intermediadores:</strong></p>
+  <table class="signature-table">
+    <tbody>
+      ${generateSignatureRows(
+    property.real_estate_agents && property.real_estate_agents.length > 0
+      ? property.real_estate_agents.map(a => {
+        const info = a.agent;
+        const name = info.company_name || info.name || info.full_name;
+        const creci = info.creci ? `<p class="signature-subtext">CRECI ${info.creci}</p>` : "";
+        return `<p class="signature-name">${name}</p>${creci}`;
+      })
+      : [`<p class="signature-name">[NOME DA IMOBILIÁRIA]</p><p class="signature-subtext">[CRECI]</p>`]
+  )}
+    </tbody>
+  </table>
+
+  <p><strong>Testemunhas:</strong></p>
+  <table class="signature-table">
+    <tbody>
+      <tr>
+        <td class="signature-cell"><p class="signature-line">_______________________________</p><p class="signature-name">Testemunha 1</p></td>
+        <td class="signature-cell"><p class="signature-line">_______________________________</p><p class="signature-name">Testemunha 2</p></td>
+      </tr>
+    </tbody>
+  </table>`;
 
   return html;
+}
+
+// Helper function to generate signature rows
+function generateSignatureRows(signatures: string[]): string {
+  let rowsHtml = "";
+  for (let i = 0; i < signatures.length; i += 2) {
+    const signature1 = signatures[i];
+    const signature2 = signatures[i + 1];
+
+    rowsHtml += `<tr>`;
+    rowsHtml += `<td class="signature-cell"><p class="signature-line">_______________________________</p>${signature1}</td>`;
+
+    if (signature2) {
+      rowsHtml += `<td class="signature-cell"><p class="signature-line">_______________________________</p>${signature2}</td>`;
+    } else {
+      rowsHtml += `<td class="signature-cell"></td>`;
+    }
+    rowsHtml += `</tr>`;
+  }
+  return rowsHtml;
 }
 
 // Funções auxiliares

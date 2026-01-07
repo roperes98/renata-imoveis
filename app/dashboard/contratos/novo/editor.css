@@ -35,9 +35,53 @@
   padding-left: 20px;
   /* Indentation for sub-clauses */
   list-style: none !important;
+
   margin-top: 0.5em;
   margin-bottom: 0.5em;
 }
+
+/* Signature Table Layout */
+.signature-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em;
+  margin-bottom: 2em;
+  border: none;
+  table-layout: fixed;
+  /* Forces columns to respect width */
+}
+
+.signature-cell {
+  width: 50%;
+  vertical-align: bottom;
+  padding-bottom: 2rem;
+  padding-right: 2rem;
+  border: none;
+}
+
+.signature-line {
+  white-space: nowrap;
+  overflow: hidden;
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: normal;
+  /* Ensure underscores aren't bolded if inside strong context */
+}
+
+.signature-name {
+  font-size: 0.9em;
+  font-weight: bold;
+  line-height: 1.2;
+  margin-bottom: 0 !important;
+}
+
+.signature-subtext {
+  font-size: 0.9em;
+  font-weight: normal;
+  display: block;
+  margin-top: 0 !important;
+}
+
 
 /* Increment counter for all list items */
 .prose .contract-clauses li,
@@ -76,8 +120,7 @@
   margin-bottom: 0.5em;
   display: block;
   width: 100%;
-  text-align: justify;
-  /* Ensure text is justified */
+  text-align: left;
   word-break: break-all;
   overflow-wrap: break-word;
   hyphens: auto;

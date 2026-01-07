@@ -12,6 +12,11 @@ import { Button } from "@/components/ui/button";
 import { useEditor, EditorContent, mergeAttributes } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import OrderedList from "@tiptap/extension-ordered-list";
+import Paragraph from "@tiptap/extension-paragraph";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
 import { ContractToolbar } from "./ContractToolbar";
 import "./editor.css";
 import { PaginationPlus, PAGE_SIZES } from "tiptap-pagination-plus";
@@ -19,6 +24,7 @@ import DragHandle from "./DragHandle";
 import { ContractSlashCommand } from "./extensions/ContractSlashCommand";
 import { ContractBubbleMenu } from "./ContractBubbleMenu";
 import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
+import Underline from "@tiptap/extension-underline";
 
 interface ContractEditorProps {
   sale: SaleProcess | undefined;
@@ -30,9 +36,78 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
     extensions: [
       StarterKit.configure({
         orderedList: false, // Desabilitar o padrão para usar o customizado abaixo
+        paragraph: false, // Custom paragraph config
+      }),
+      Paragraph.configure({
+        HTMLAttributes: {
+          class: "my-custom-paragraph",
+        },
+      }).extend({
+        addAttributes() {
+          return {
+            class: {
+              default: null,
+              parseHTML: element => element.getAttribute("class"),
+              renderHTML: attributes => {
+                return {
+                  class: attributes.class,
+                }
+              },
+            }
+          }
+        }
       }),
       ContractSlashCommand,
       BubbleMenuExtension,
+      Underline,
+      Table.configure({
+        resizable: true,
+      }).extend({
+        addAttributes() {
+          return {
+            class: {
+              default: null,
+              parseHTML: element => element.getAttribute("class"),
+              renderHTML: attributes => {
+                return {
+                  class: attributes.class,
+                }
+              },
+            }
+          }
+        }
+      }),
+      TableRow.extend({
+        addAttributes() {
+          return {
+            class: {
+              default: null,
+              parseHTML: element => element.getAttribute("class"),
+              renderHTML: attributes => {
+                return {
+                  class: attributes.class,
+                }
+              },
+            }
+          }
+        }
+      }),
+      TableHeader,
+      TableCell.extend({
+        addAttributes() {
+          return {
+            class: {
+              default: null,
+              parseHTML: element => element.getAttribute("class"),
+              renderHTML: attributes => {
+                return {
+                  class: attributes.class,
+                }
+              },
+            }
+          }
+        }
+      }),
       OrderedList.configure({
         keepMarks: true,
         keepAttributes: true,
@@ -155,7 +230,7 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
                   }
                   .ProseMirror p {
                     margin-bottom: 1em;
-                    text-align: justify;
+                    text-align: left;
                   }
                   /* Remove outline on focus */
                   .ProseMirror:focus {

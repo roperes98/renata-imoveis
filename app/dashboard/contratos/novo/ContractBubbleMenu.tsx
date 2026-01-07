@@ -1,6 +1,7 @@
 import { BubbleMenu } from "@tiptap/react/menus";
+import { useEffect, useState } from "react";
 import { Editor } from "@tiptap/core";
-import { Bold, Italic, List, ListOrdered, Quote as QuoteIcon, Heading1, Heading2, Heading3, Gavel } from "lucide-react";
+import { Bold, Italic, Underline, List, ListOrdered, Quote as QuoteIcon, Heading1, Heading2, Heading3, Gavel } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 
@@ -9,6 +10,21 @@ interface ContractBubbleMenuProps {
 }
 
 export function ContractBubbleMenu({ editor }: ContractBubbleMenuProps) {
+  // Forçar re-render quando o estado do editor mudar (seleção, marks, etc)
+  const [, forceUpdate] = useState({});
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleUpdate = () => forceUpdate({});
+
+    editor.on('transaction', handleUpdate);
+
+    return () => {
+      editor.off('transaction', handleUpdate);
+    };
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
@@ -24,6 +40,13 @@ export function ContractBubbleMenu({ editor }: ContractBubbleMenuProps) {
         onPressedChange={() => editor.chain().focus().toggleBold().run()}
       >
         <Bold className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive('underline')}
+        onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
+      >
+        <Underline className="h-4 w-4" />
       </Toggle>
       <Toggle
         size="sm"
