@@ -1,0 +1,182 @@
+/* Contract Editor Styles */
+.ProseMirror {
+  outline: none;
+}
+
+/* Page styling for Pagination Plus */
+.tiptap.rm-with-pagination {
+  background-color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  /* Shadow-md like */
+  margin: 0 auto;
+  /* Center the page */
+}
+
+/* Ensure the gap looks like a break (matches the container bg) */
+.rm-pagination-gap {
+  background-color: #f3f4f6 !important;
+  /* bg-gray-100 */
+}
+
+/* Standard Paragraph Layout with Auto-Numbering for Clauses */
+.prose .contract-clauses,
+.contract-clauses {
+  counter-reset: clause-counter !important;
+  list-style: none !important;
+  padding-left: 0;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+/* Reset counter for nested lists */
+.prose .contract-clauses ol,
+.contract-clauses ol {
+  counter-reset: clause-counter !important;
+  padding-left: 20px;
+  /* Indentation for sub-clauses */
+  list-style: none !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+/* Increment counter for all list items */
+.prose .contract-clauses li,
+.contract-clauses li {
+  counter-increment: clause-counter !important;
+  margin-bottom: 1em;
+  /* Reduced from 2em for better nesting spacing */
+  display: block;
+}
+
+/* TOP LEVEL: "CLÁUSULA I -" */
+.ProseMirror .prose .contract-clauses>li>p:first-child::before,
+.ProseMirror .contract-clauses>li>p:first-child::before,
+.prose .contract-clauses>li>p:first-child::before,
+.contract-clauses>li>p:first-child::before {
+  content: "CLÁUSULA " counter(clause-counter, upper-roman) " - " !important;
+  font-weight: bold;
+  font-family: inherit;
+  color: var(--tw-prose-body);
+}
+
+/* NESTED LEVELS: "I.I -" */
+.ProseMirror .prose .contract-clauses ol li>p:first-child::before,
+.ProseMirror .contract-clauses ol li>p:first-child::before,
+.prose .contract-clauses ol li>p:first-child::before,
+.contract-clauses ol li>p:first-child::before {
+  content: counters(clause-counter, ".", upper-roman) " - " !important;
+  font-weight: bold;
+  font-family: inherit;
+  color: var(--tw-prose-body);
+}
+
+.prose .contract-clauses li p,
+.contract-clauses li p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  display: block;
+  width: 100%;
+  text-align: justify;
+  /* Ensure text is justified */
+  word-break: break-all;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Ensure default markers are hidden */
+.prose .contract-clauses li::marker,
+.contract-clauses li::marker,
+.prose .contract-clauses li::before,
+.contract-clauses li::before {
+  display: none !important;
+  content: "" !important;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #e5e7eb;
+  /* gray-200 */
+  padding-left: 1rem;
+  font-style: italic;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin-top: 0.67em;
+  margin-bottom: 0.67em;
+  line-height: 1.2;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-top: 0.83em;
+  margin-bottom: 0.83em;
+  line-height: 1.3;
+}
+
+.ProseMirror h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  line-height: 1.4;
+}
+
+/* Bullet List Styles */
+.ProseMirror ul:not(.contract-clauses) {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.ProseMirror ul:not(.contract-clauses) ul {
+  list-style-type: circle;
+}
+
+.ProseMirror ul:not(.contract-clauses) ul ul {
+  list-style-type: square;
+}
+
+.ProseMirror ul:not(.contract-clauses) li {
+  display: list-item;
+  margin-bottom: 0.5em;
+}
+
+/* Standard Ordered List Styles (Nested 1.1) */
+/* Standard Ordered List Styles (Nested 1.1) */
+/* Explicitly exclude .contract-clauses */
+.ProseMirror ol:not(.contract-clauses) {
+  counter-reset: standard-counter;
+  list-style: none !important;
+  /* Disable default markers */
+  padding-left: 1.5rem;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.ProseMirror ol:not(.contract-clauses) li {
+  counter-increment: standard-counter;
+  display: block;
+  margin-bottom: 0.5em;
+  position: relative;
+}
+
+.ProseMirror ol:not(.contract-clauses) li>p:first-child::before {
+  content: counters(standard-counter, ".") ". ";
+  /* Output: 1. or 1.1. */
+  font-variant-numeric: tabular-nums;
+  margin-right: 0.25em;
+  color: inherit;
+}
+
+/* Nested Standard OL reset */
+.ProseMirror ol:not(.contract-clauses) ol {
+  counter-reset: standard-counter;
+  padding-left: 1.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
