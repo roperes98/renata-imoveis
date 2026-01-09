@@ -12,13 +12,13 @@ export default async function NewContractPage({ searchParams }: PageProps) {
   const selectedSale = MOCK_SALE_DATA;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <div className="mb-6">
+    <div className="flex flex-col h-full">
+      {/* <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Novo Contrato</h1>
         <p className="text-gray-500 mt-1">
           Gere e edite o contrato baseado nos dados da venda
         </p>
-      </div>
+      </div> */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <ContractEditor sale={selectedSale} />
       </div>

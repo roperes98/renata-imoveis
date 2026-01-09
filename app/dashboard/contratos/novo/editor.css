@@ -18,6 +18,17 @@
   /* bg-gray-100 */
 }
 
+/* Footer layout fixes for full expansion */
+.rm-page-footer-left {
+  display: flex;
+  flex: 1;
+}
+
+.rm-page-footer-content {
+  display: flex !important;
+  width: 100%;
+}
+
 /* Standard Paragraph Layout with Auto-Numbering for Clauses */
 .prose .contract-clauses,
 .contract-clauses {
@@ -65,6 +76,7 @@
   display: block;
   margin-bottom: 0.25rem;
   font-weight: normal;
+  margin-top: 3em;
   /* Ensure underscores aren't bolded if inside strong context */
 }
 
@@ -120,11 +132,11 @@
   margin-bottom: 0.5em;
   display: block;
   width: 100%;
-  text-align: left;
   word-break: break-all;
   overflow-wrap: break-word;
   hyphens: auto;
 }
+
 
 /* Ensure default markers are hidden */
 .prose .contract-clauses li::marker,
@@ -222,4 +234,14 @@
   padding-left: 1.5rem;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
+}
+
+@media print {
+  .page-break {
+    page-break-before: always;
+  }
+
+  .no-print {
+    display: none;
+  }
 }

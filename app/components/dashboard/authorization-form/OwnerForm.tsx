@@ -350,21 +350,6 @@ export const OwnerForm = ({
               </Select>
             </div>
           </div>
-
-          {/* Assinatura Digital */}
-          <div className="border-t border-gray-200 pt-6">
-            <h4 className="text-base font-semibold text-gray-900 mb-4">
-              Assinatura Digital - Proprietário {index + 1}
-            </h4>
-            <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <p className="text-sm text-gray-600 mb-4">
-                Área reservada para assinatura digital
-              </p>
-              <p className="text-xs text-gray-500">
-                O método de assinatura será implementado em breve
-              </p>
-            </div>
-          </div>
         </div>
       )}
     </div>

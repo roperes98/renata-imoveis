@@ -1,9 +1,16 @@
 import { BubbleMenu } from "@tiptap/react/menus";
 import { useEffect, useState } from "react";
 import { Editor } from "@tiptap/core";
-import { Bold, Italic, Underline, List, ListOrdered, Quote as QuoteIcon, Heading1, Heading2, Heading3, Gavel } from "lucide-react";
+import { Bold, Italic, Underline, List, ListOrdered, Quote as QuoteIcon, Heading1, Heading2, Heading3, Gavel, AlignLeft, AlignCenter, AlignRight, AlignJustify } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ContractBubbleMenuProps {
   editor: Editor | null;
@@ -55,7 +62,41 @@ export function ContractBubbleMenu({ editor }: ContractBubbleMenuProps) {
       >
         <Italic className="h-4 w-4" />
       </Toggle>
+
       <Separator orientation="vertical" className="h-6" />
+
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'left' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
+        aria-label="Align left"
+      >
+        <AlignLeft className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'center' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
+        aria-label="Align center"
+      >
+        <AlignCenter className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'right' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
+        aria-label="Align right"
+      >
+        <AlignRight className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'justify' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('justify').run()}
+        aria-label="Align justify"
+      >
+        <AlignJustify className="h-4 w-4" />
+      </Toggle>
       <Toggle
         size="sm"
         pressed={editor.isActive('bulletList')}
@@ -78,6 +119,25 @@ export function ContractBubbleMenu({ editor }: ContractBubbleMenuProps) {
       >
         <Gavel className="h-4 w-4" />
       </Toggle>
+
+      <Separator orientation="vertical" className="h-6" />
+
+      <Select
+        value={editor.getAttributes('textStyle').fontSize || "14px"}
+        onValueChange={(value) => editor.chain().focus().setFontSize(value).run()}
+      >
+        <SelectTrigger className="h-8 w-[70px]">
+          <SelectValue placeholder="14px" />
+        </SelectTrigger>
+        <SelectContent>
+          {[12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72].map((size) => (
+            <SelectItem key={size} value={`${size}px`}>
+              {size}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       <Separator orientation="vertical" className="h-6" />
       <Toggle
         size="sm"

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Plus, MapPin, Globe, Loader2, AlertCircle } from "lucide-react";
 import { Country } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 
@@ -13,6 +13,9 @@ import { DocumentUpload } from "@/app/components/dashboard/authorization-form/Do
 import { TermsAccordion } from "@/app/components/dashboard/authorization-form/TermsAccordion";
 import { OwnerData } from "@/app/components/dashboard/authorization-form/types";
 import { validateCPF } from "@/app/components/dashboard/authorization-form/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { submitAuthorization } from "@/app/actions/authorization";
 
 interface AuthorizationFormProps {
   propertyId: string;
@@ -34,11 +37,260 @@ const createEmptyOwner = (email: string = ""): OwnerData => ({
 });
 
 export default function AuthorizationForm({ propertyId, token, userEmail }: AuthorizationFormProps) {
+  const [mounted, setMounted] = useState(false);
   const [owners, setOwners] = useState<OwnerData[]>([createEmptyOwner(userEmail)]);
   const [currentOwnerIndex, setCurrentOwnerIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [phoneCountries, setPhoneCountries] = useState<{ [key: number]: { phone: Country | undefined; cellphone: Country | undefined } }>({});
+
+  // Signature State
+  const [signatureData, setSignatureData] = useState<{
+    ip: string;
+    latitude?: number;
+    longitude?: number;
+    userAgent: string;
+    timestamp?: string;
+    locationError?: string;
+  }>({
+    ip: "Carregando...",
+    userAgent: "",
+  });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const requestLocation = useCallback(async () => {
+    console.log("Requesting location...");
+    setSignatureData(prev => ({ ...prev, locationError: undefined }));
+
+    if (typeof window === 'undefined') {
+      console.log("Window is undefined, skipping geolocation");
+      return;
+    }
+
+    // Detectar navegador para mensagens mais específicas (fazer antes das outras verificações)
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isArc = userAgent.includes('Arc');
+    const browserName = isArc ? 'Arc' : 'o navegador';
+
+    // Verificar se está em HTTPS (requisito para geolocalização)
+    // Exceções: localhost e variações são sempre permitidas (desenvolvimento local)
+    const isLocalhost =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '[::1]' ||
+      window.location.hostname.startsWith('127.0.0.1') ||
+      window.location.hostname.startsWith('192.168.') ||
+      window.location.hostname.startsWith('10.') ||
+      window.location.hostname.endsWith('.local');
+
+    if (window.location.protocol !== 'https:' && !isLocalhost) {
+      console.log("Not using HTTPS, geolocation may not work");
+      setSignatureData(prev => ({
+        ...prev,
+        locationError: "A geolocalização requer uma conexão segura (HTTPS). Por favor, acesse o site via HTTPS."
+      }));
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      console.log("Geolocation not supported");
+      const browserNameForError = isArc ? 'Arc' : 'este navegador';
+
+      setSignatureData(prev => ({
+        ...prev,
+        locationError: `Geolocalização não suportada por ${browserNameForError}. Tente usar Chrome, Firefox ou Edge atualizados.`
+      }));
+      return;
+    }
+
+    // Verificar status da permissão se a API estiver disponível
+    if ('permissions' in navigator) {
+      try {
+        const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        console.log("Permission status:", permissionStatus.state);
+
+        if (permissionStatus.state === 'denied') {
+          setSignatureData(prev => ({
+            ...prev,
+            locationError: `Permissão de localização negada em ${browserName}. Por favor, permita o acesso nas configurações do navegador (ícone de cadeado na barra de endereços) e tente novamente.`
+          }));
+          return;
+        }
+
+        // Se a permissão estiver em 'prompt', podemos continuar normalmente
+        // O navegador mostrará o prompt automaticamente
+      } catch {
+        console.log("Permission API not fully supported, continuing anyway");
+        // Alguns navegadores (como versões antigas do Arc) podem não suportar a API de Permissions
+        // mas ainda suportam geolocalização, então continuamos
+      }
+    }
+
+    // Função auxiliar para tentar obter localização com opções específicas
+    const tryGetLocation = (options: PositionOptions): Promise<GeolocationPosition> => {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    };
+
+    // Função auxiliar usando watchPosition como fallback (às vezes funciona melhor)
+    const tryWatchLocation = (options: PositionOptions): Promise<GeolocationPosition> => {
+      return new Promise((resolve, reject) => {
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            navigator.geolocation.clearWatch(watchId);
+            resolve(position);
+          },
+          reject,
+          options
+        );
+
+        // Timeout para evitar que fique esperando indefinidamente
+        setTimeout(() => {
+          navigator.geolocation.clearWatch(watchId);
+          reject(new Error('Timeout ao usar watchPosition'));
+        }, options.timeout || 15000);
+      });
+    };
+
+    try {
+      console.log("Calling getCurrentPosition...");
+
+      // Primeira tentativa: com alta precisão
+      try {
+        const position = await tryGetLocation({
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 60000 // Aceitar posição com até 1 minuto de idade
+        });
+
+        console.log("Location obtained (high accuracy):", position.coords.latitude, position.coords.longitude);
+        setSignatureData(prev => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          locationError: undefined
+        }));
+        return;
+      } catch (highAccuracyError: unknown) {
+        console.log("High accuracy failed, trying with standard options...", highAccuracyError);
+
+        // Segunda tentativa: sem alta precisão (mais rápido e funciona em mais dispositivos)
+        try {
+          const position = await tryGetLocation({
+            enableHighAccuracy: false,
+            timeout: 20000, // Aumentar timeout para dar mais tempo
+            maximumAge: 300000 // Aceitar posição com até 5 minutos de idade
+          });
+
+          console.log("Location obtained (standard):", position.coords.latitude, position.coords.longitude);
+          setSignatureData(prev => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            locationError: undefined
+          }));
+          return;
+        } catch (standardError: unknown) {
+          console.log("Standard options failed, trying watchPosition as fallback...", standardError);
+
+          // Terceira tentativa: usar watchPosition (às vezes funciona quando getCurrentPosition falha)
+          try {
+            const position = await tryWatchLocation({
+              enableHighAccuracy: false,
+              timeout: 20000,
+              maximumAge: 300000
+            });
+
+            console.log("Location obtained (watchPosition):", position.coords.latitude, position.coords.longitude);
+            setSignatureData(prev => ({
+              ...prev,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              locationError: undefined
+            }));
+            return;
+          } catch {
+            // Se todas falharem, usar o erro original
+            throw standardError;
+          }
+        }
+      }
+    } catch (error: unknown) {
+      // Robust error logging
+      console.error("Geolocation error object:", error);
+
+      let msg = "Não foi possível obter sua localização.";
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const geoError = error as GeolocationPositionError;
+        console.error("Geolocation error code:", geoError.code);
+        console.error("Geolocation error message:", geoError.message);
+
+        // 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+        if (geoError.code === 1) {
+          msg = `Permissão de localização negada em ${browserName}.`;
+          if (isArc) {
+            msg += " No Arc, verifique se você bloqueou a localização neste site (ícone de cadeado/escudo na barra de URL).";
+          } else {
+            msg += " Clique no ícone de cadeado na barra de endereços e permita o acesso à localização.";
+          }
+        } else if (geoError.code === 2) {
+          // POSITION_UNAVAILABLE - Comum quando o SO bloqueia o navegador
+          msg = "Localização indisponível. ";
+
+          if (isArc) {
+            msg += "No Arc, isso frequentemente ocorre se o Windows/macOS não tiver dado permissão de localização para o navegador. Verifique em Configurações do Sistema > Privacidade > Localização se o Arc tem permissão.";
+          } else {
+            msg += "Verifique se o GPS está ativado e se o navegador tem permissão de acesso à localização nas configurações do seu sistema operacional (Windows/macOS).";
+          }
+
+          // Debug info
+          if (geoError.message) msg += ` (Erro técnico: ${geoError.message})`;
+
+        } else if (geoError.code === 3) {
+          msg = "O tempo para obter a localização esgotou. Isso pode ser falha de rede ou GPS fraco. Tente novamente ou use uma conexão diferente.";
+        } else if (geoError.message) {
+          msg = `Erro na localização: ${geoError.message}`;
+        }
+      } else {
+        // Erro desconhecido que não segue a interface GeolocationPositionError
+        msg = "Erro desconhecido ao tentar obter localização. Tente atualizar a página.";
+        console.error("Unknown error details:", error);
+      }
+
+      setSignatureData(prev => ({ ...prev, locationError: msg }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    // 1. Get User Agent
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+
+    // 2. Get IP Address
+    fetch('/api/my-ip')
+      .then(res => res.json())
+      .then(data => {
+        setSignatureData(prev => ({ ...prev, ip: data.ip, userAgent }));
+      })
+      .catch(err => {
+        console.error("Failed to fetch IP", err);
+        setSignatureData(prev => ({ ...prev, ip: "Indisponível", userAgent }));
+      });
+
+    // 3. Get Location - wait a bit to ensure component is fully mounted
+    const locationTimer = setTimeout(() => {
+      requestLocation();
+    }, 100);
+
+    return () => clearTimeout(locationTimer);
+  }, [mounted, requestLocation]);
+
 
   // Estados para upload de documentos
   const [documents, setDocuments] = useState<{
@@ -326,23 +578,39 @@ export default function AuthorizationForm({ propertyId, token, userEmail }: Auth
       return;
     }
 
+    if (!signatureData.latitude || !signatureData.ip) {
+      alert("Não é possível enviar o formulário sem a confirmação de localização e IP para assinatura digital.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: Implementar a lógica de envio do formulário
-      // Por enquanto, apenas simula o envio
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const formData = {
+        propertyId,
+        token,
+        owners,
+        documents: {
+          onusReais: documents.onusReais.file ? 'Attached' : null, // Should upload to blob storage and get URL first
+          iptu: documents.iptu.file ? 'Attached' : null,
+          condominio: documents.condominio.file ? 'Attached' : null,
+        }
+      };
 
-      console.log("Owners data:", owners);
-      console.log("Property ID:", propertyId);
-      console.log("Token:", token);
-      console.log("Documents:", {
-        onusReais: documents.onusReais.file?.name,
-        iptu: documents.iptu.file?.name,
-        condominio: documents.condominio.file?.name,
+      const result = await submitAuthorization(formData, {
+        latitude: signatureData.latitude,
+        longitude: signatureData.longitude,
+        userAgent: signatureData.userAgent,
+        timestamp: new Date().toISOString()
       });
 
-      setSubmitted(true);
+      console.log("Submission Result:", result);
+
+      if (result.success) {
+        setSubmitted(true);
+      } else {
+        alert("Erro ao enviar. Tente novamente.");
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       alert("Erro ao enviar formulário. Tente novamente.");
@@ -350,6 +618,16 @@ export default function AuthorizationForm({ propertyId, token, userEmail }: Auth
       setLoading(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <Card>
+        <CardContent className="py-20 flex justify-center items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (submitted) {
     return (
@@ -478,11 +756,79 @@ export default function AuthorizationForm({ propertyId, token, userEmail }: Auth
 
           <TermsAccordion />
 
+          <div className="border rounded-lg p-4 border-gray-200">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <Checkbox id="terms" />
+                <Label htmlFor="terms">Eu li e aceito os termos e condições.<span className="text-red-500">*</span></Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox id="communications" />
+                <Label htmlFor="communications">Eu autorizo o recebimento de comunicados e mensagens através de diferentes canais.<span className="text-red-500">*</span></Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Signature Data Display */}
+          <div className={`p-4 rounded-md border text-sm space-y-2 ${signatureData.locationError ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+            <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full animate-pulse ${signatureData.latitude ? 'bg-green-500' : 'bg-red-500'}`}></span>
+              Assinatura Eletrônica e Auditoria
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                <span>Endereço IP: <strong>{signatureData.ip}</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                <span>Localização:
+                  {signatureData.latitude && signatureData.longitude
+                    ? <strong className="text-green-600"> {signatureData.latitude.toFixed(6)}, {signatureData.longitude.toFixed(6)}</strong>
+                    : <span className="text-amber-600 italic"> {signatureData.locationError || "Aguardando permissão..."}</span>
+                  }
+                </span>
+                {signatureData.locationError && (
+                  <Button type="button" variant="outline" size="sm" onClick={requestLocation} className="ml-2 h-6 text-xs">
+                    Tentar Novamente
+                  </Button>
+                )}
+              </div>
+            </div>
+            {signatureData.locationError && (
+              <div className="flex items-center gap-2 text-amber-600 text-xs mt-1">
+                <AlertCircle className="h-3 w-3" />
+                <span>É necessário permitir a localização para assinar este documento.</span>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 pt-2 border-t border-gray-200 mt-2">
+              Ao clicar em &quot;Enviar Autorização&quot;, você concorda com a captura destes dados para ins de auditoria e validação jurídica desta autorização digital.
+            </p>
+          </div>
+
           {/* Submit Button */}
-          <div className="flex justify-end pt-4 border-t border-gray-200">
-            <Button type="submit" disabled={loading} className="min-w-[120px]">
-              {loading ? "Enviando..." : "Enviar Autorização"}
-            </Button>
+          <div className="flex flex-col gap-2 pt-4 border-t border-gray-200">
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={loading || !signatureData.latitude || !signatureData.ip}
+                className="min-w-[120px]"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : "Enviar Autorização"}
+              </Button>
+            </div>
+
+            {(!signatureData.latitude || !signatureData.ip) && (
+              <p className="text-right text-xs text-red-500">
+                Aguardando dados de assinatura eletrônica (Localização e IP) para liberar o envio.
+              </p>
+            )}
           </div>
         </form>
       </CardContent>

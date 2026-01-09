@@ -118,9 +118,17 @@ export const DragHandle: React.FC<DragHandleProps> = ({ editor }) => {
 
       const rect = nodeDOM.getBoundingClientRect();
 
+      let leftPos = rect.left;
+
+      // Se for um item de lista, alinhar com o container pai (a lista) para evitar que a indentação desalinhe o handle
+      // Isso corrige o problema com 'ul' padrão e mantém 'contract-clauses' alinhado corretamente
+      if (node.type.name === 'listItem' && nodeDOM.parentElement) {
+        leftPos = nodeDOM.parentElement.getBoundingClientRect().left;
+      }
+
       setPosition({
         top: rect.top + HANDLE_OFFSET_Y,
-        left: rect.left - HANDLE_OFFSET_X,
+        left: leftPos - HANDLE_OFFSET_X,
         height: rect.height
       });
       setCurrentNodePos(nodePos);

@@ -62,6 +62,14 @@ export const TermsAccordion = () => {
             </p>
           </AccordionContent>
         </AccordionItem>
+        <AccordionItem value="item-6">
+          <AccordionTrigger>Assinatura Eletrônica</AccordionTrigger>
+          <AccordionContent className="flex flex-col gap-4 text-balance">
+            <p>
+              Ao clicar em "Enviar Autorização", você concorda com a captura destes dados para fins de auditoria e validação jurídica desta autorização digital.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
     </div>
   );

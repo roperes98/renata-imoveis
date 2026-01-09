@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 
@@ -14,6 +15,8 @@ export default function DashboardLayoutWrapper({
   userEmail,
 }: DashboardLayoutWrapperProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const pathname = usePathname();
+  const isContractPage = pathname?.includes("/dashboard/contratos/novo");
 
   return (
     <div className="flex h-screen bg-[#960000]">
@@ -26,7 +29,7 @@ export default function DashboardLayoutWrapper({
           }`}
       >
         <main
-          className="flex-1 overflow-y-auto rounded-l-[36px] bg-gray-50 p-8 isolate border-l border-gray-200"
+          className={`flex-1 overflow-y-auto rounded-l-[36px] bg-gray-50 isolate border-l border-gray-200 ${isContractPage ? "p-0" : "p-8"}`}
           style={{
             transform: 'translate3d(0,0,0)', // Forces hardware acceleration
             WebkitMaskImage: '-webkit-radial-gradient(white, black)', // Safari/Chrome radius fix
