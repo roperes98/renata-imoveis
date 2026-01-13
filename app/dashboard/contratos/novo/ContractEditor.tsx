@@ -5,7 +5,7 @@ import { SaleProcess } from "@/app/lib/types/sales";
 import { generateBaseContract } from "./contract-generator";
 import ContractDataBlocks from "./ContractDataBlocks";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MoreHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Tiptap imports
@@ -27,7 +27,11 @@ import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
+import { FontFamily } from "@tiptap/extension-font-family";
 import { FontSize } from "./extensions/FontSize";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuShortcut, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
+import { ButtonGroup } from "@/components/ui/button-group";
 
 
 interface ContractEditorProps {
@@ -35,6 +39,15 @@ interface ContractEditorProps {
 }
 
 export default function ContractEditor({ sale }: ContractEditorProps) {
+  const [modifier, setModifier] = useState("Ctrl");
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)) {
+      setModifier("⌘");
+    } else if (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('mac')) {
+      setModifier("⌘");
+    }
+  }, []);
   // Configuração do editor
   // Helper for footer text
   const getFooterText = (sale: SaleProcess | undefined) => {
@@ -135,6 +148,7 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
       BubbleMenuExtension,
       Underline,
       TextStyle,
+      FontFamily,
       FontSize,
       TextAlign.configure({
         types: ['heading', 'paragraph', 'orderedList', 'listItem'],
@@ -225,18 +239,18 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
         ${footerText}
         </div>
         `,
-        marginTop: 40,
+        marginTop: 30,
         marginBottom: 40,
         marginLeft: 60,
         marginRight: 40,
-        contentMarginTop: 20,
-        contentMarginBottom: 20,
+        contentMarginTop: 15,
+        contentMarginBottom: 15,
       }),
     ],
     editorProps: {
       attributes: {
         class: "focus:outline-none min-h-[in] p-0", // Removido p-8 pois a extensão lida com margens
-        style: "font-family: Georgia, 'Times New Roman', serif; line-height: 1.8; font-size: 14px;",
+        style: "font-family: Helvetica, Arial, sans-serif; line-height: 1.8; font-size: 12px;",
       },
     },
     immediatelyRender: false,
@@ -276,8 +290,8 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
 
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-gray-100">
-      <div className="flex items-center gap-4 py-4 px-6 border-b bg-white">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-gray-100 print:h-auto print:overflow-visible print:bg-white">
+      <div className="flex items-center gap-4 py-4 px-6 border-b bg-white no-print">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/dashboard/contratos">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -286,37 +300,106 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
         </Button>
         <div className="h-6 w-px bg-border" />
         <ContractToolbar editor={editor} />
-        <Button onClick={() => window.print()} className="no-print">
-          Print Content
-        </Button>
+        <ButtonGroup>
+          <Button variant="outline">Salvar</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="More Options">
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem>
+                  Salvar e Retornar
+                  <DropdownMenuShortcut><Kbd>{modifier}</Kbd> + <Kbd>S</Kbd></DropdownMenuShortcut>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const originalTitle = document.title;
+
+                    if (sale?.property) {
+                      const { address_street, address_number, address_complement } = sale.property;
+                      // contrato-[rua]_[numero]-[complemento].pdf
+                      // Sanitize values to be safe for filenames
+                      const clean = (str: string | undefined | null) => str ? str.replace(/[^a-zA-Z0-9]/g, '_') : '';
+
+                      const street = address_street || 'sem-rua';
+                      const number = address_number || 's-n';
+                      const complement = address_complement ? `-${address_complement}` : '';
+
+                      const safeStreet = street.trim().replace(/\s+/g, '-').toLowerCase();
+                      const safeNumber = number.toString().trim().replace(/\s+/g, '-');
+                      const safeComplement = complement.trim().replace(/\s+/g, '-').toLowerCase();
+
+                      // Should be slightly cleaner logic for user request: "contrato-[rua]_[numero]-[complemento]"
+                      // He requested: contrato-[rua]_[numero]-[complemento]
+                      // Let's try to match mostly what they asked, but sanitize slashes etc.
+
+                      const filenameStreet = (address_street || 'imovel').trim();
+                      const filenameNumber = (address_number || 'sn').toString().trim();
+                      const filenameComplement = address_complement ? `-${address_complement.trim()}` : '';
+
+                      // Sanitize for filename usage: Capitalized words separated by Underscores
+                      // e.g. "Rua Guimarães Rosa" -> "Rua_Guimaraes_Rosa"
+                      const toFormat = (s: string) => {
+                        return s
+                          .trim()
+                          .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars keeping spaces
+                          .split(/\s+/)
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                          .join('_');
+                      };
+
+                      // Format: Contrato-Rua_Guimares_Rosa_203-Apt_408
+                      const streetPart = toFormat(filenameStreet);
+                      const numberPart = toFormat(filenameNumber); // usually single word "203"
+                      const complementPart = filenameComplement ? '-' + toFormat(filenameComplement.replace(/^-/, '')) : '';
+
+                      const finalName = `Contrato-${streetPart}_${numberPart}${complementPart}`;
+                      document.title = finalName;
+                    }
+
+                    window.print();
+
+                    // Restore title after a small delay to ensure print dialog picks it up
+                    setTimeout(() => {
+                      document.title = originalTitle;
+                    }, 1000);
+                  }}
+                >
+                  Salvar e Imprimir
+                  <DropdownMenuShortcut><Kbd>{modifier}</Kbd> + <Kbd>R</Kbd></DropdownMenuShortcut>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  Salvar e Exportar
+                  <DropdownMenuShortcut><Kbd>{modifier}</Kbd> + <Kbd>E</Kbd></DropdownMenuShortcut>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden print:h-auto print:overflow-visible print:block">
         {/* Editor à esquerda - Formato A4 com paginação via Extension */}
-        <div className="flex-1 overflow-auto bg-gray-100 p-8 print-content-only">
+        <div className="flex-1 overflow-auto bg-gray-100 p-8 print-content-only print:p-0 print:m-0 print:h-auto print:overflow-visible">
           {/* Container flex para centralizar verticalmente e permitir scroll */}
-          <div className="min-h-full flex flex-col items-center">
+          <div className="min-h-full flex flex-col items-center print:block print:min-h-0 print:h-auto">
             {/* 
                 Wrapper do Editor com PaginationPlus:
                 A extensão desenha o background e páginas. 
                 Precisamos garantir que o container não restrinja altura.
               */}
             <div
-              className="relative"
+              className="relative print:static print:h-auto"
             >
-              <DragHandle editor={editor} />
-              <ContractBubbleMenu editor={editor} />
+              <div className="no-print">
+                <DragHandle editor={editor} />
+                <ContractBubbleMenu editor={editor} />
+              </div>
               <style jsx global>{`
                   /* Garantir visibilidade de formatação rica */
-                  .ProseMirror h4 {
-                    font-weight: 800;
-                    font-size: 1.2rem;
-                    text-transform: uppercase;
-                    text-align: center;
-                    margin-top: 1em;
-                    margin-bottom: 1em;
-                    color: black;
-                  }
                   .ProseMirror strong {
                     font-weight: 700 !important;
                     color: black;
@@ -336,7 +419,7 @@ export default function ContractEditor({ sale }: ContractEditorProps) {
         </div>
 
         {/* Blocos de informações à direita */}
-        <div className="w-80 border-l bg-white shrink-0 flex flex-col h-full overflow-hidden">
+        <div className="w-80 border-l bg-white shrink-0 flex flex-col h-full overflow-hidden no-print">
           <div className="p-4 border-b bg-gray-50">
             <h3 className="font-semibold text-sm text-gray-700">Dados do Contrato</h3>
             <p className="text-xs text-muted-foreground">Arraste os campos para o contrato</p>

@@ -3,6 +3,7 @@
 
 import { useState, useTransition } from "react";
 import { SaleProcess, SaleStepChecklistItem, SaleStepStatus } from "@/app/lib/types/sales";
+import { useUserRole, UserRole } from "@/app/context/UserRoleContext";
 import Link from "next/link";
 import {
   FaChevronLeft, FaCheck, FaClock, FaFileAlt, FaPaperclip,
@@ -22,6 +23,7 @@ export default function SaleDetailView({ sale }: SaleDetailViewProps) {
   const [isPending, startTransition] = useTransition();
   const [uploadingItems, setUploadingItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const { role } = useUserRole();
 
   // Safe guard if index is out of bounds or steps changed
   const safeIndex = activeStepIndex >= 0 && activeStepIndex < sale.steps.length ? activeStepIndex : 0;
@@ -202,7 +204,15 @@ export default function SaleDetailView({ sale }: SaleDetailViewProps) {
                 <p className="font-bold text-gray-900 text-lg">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.offer?.offer_amount || 0)}
                 </p>
-                <p className="text-sm text-gray-500">Forma de Pagamento: {(sale.offer?.payment_type === 'financing' ? 'Financiamento' : sale.offer?.payment_type)}</p>
+                <p className="text-sm text-gray-500">
+                  Forma de Pagamento: {
+                    sale.offer?.payment_type === 'cash' ? 'À Vista' :
+                      sale.offer?.payment_type === 'financing' ? 'Financiamento' :
+                        sale.offer?.payment_type === 'mixed' ? 'Misto (Entrada + Financiamento)' :
+                          sale.offer?.payment_type === 'rent_to_own' ? 'Aluguel com Opção de Compra' :
+                            'Outro'
+                  }
+                </p>
               </div>
             </div>
           </div>
@@ -262,10 +272,17 @@ export default function SaleDetailView({ sale }: SaleDetailViewProps) {
                   uploadingItems={uploadingItems}
                   isPending={isPending}
                   onUpload={handleFileUpload}
-                  // Although standard check box toggle is usually for manual/review, we might want it here too if needed?
-                  // The original code passed `handleFileUpload` for uploads.
-                  // If we want manual validation (checkboxes) alongside uploads:
                   onToggle={handleToggle}
+                  userRole={role}
+                />
+              ) : activeStep.id === 'financing' ? (
+                // Tabbed Interface for Financing
+                <FinancingTabsShadcn
+                  checklist={activeStep.checklist || []}
+                  uploadingItems={uploadingItems}
+                  isPending={isPending}
+                  onUpload={handleFileUpload}
+                  userRole={role}
                 />
               ) : (
                 // Standard Upload View for other steps
@@ -282,6 +299,11 @@ export default function SaleDetailView({ sale }: SaleDetailViewProps) {
                         isUploading={uploadingItems.has(item.id)}
                         isPending={isPending}
                         onUpload={handleFileUpload}
+                        readOnly={
+                          role === 'parceiro' ||
+                          ((item.id === 'itbi_paid' || item.id === 'laudemio_paid') && role !== 'admin' && role !== 'corretor')
+                        }
+                        canViewFile={role !== 'parceiro'}
                       />
                     ))}
                   </div>
@@ -379,17 +401,20 @@ export default function SaleDetailView({ sale }: SaleDetailViewProps) {
 }
 
 // Helper Component for Single Item
-function ChecklistItem({ item, isUploading, isPending, onUpload }: {
+function ChecklistItem({ item, isUploading, isPending, onUpload, readOnly = false, canViewFile = true }: {
   item: SaleStepChecklistItem,
   isUploading: boolean,
   isPending: boolean,
-  onUpload: (id: string, file: File) => void
+  onUpload: (id: string, file: File) => void,
+  readOnly?: boolean,
+  canViewFile?: boolean
 }) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (readOnly) return;
     if (item.status !== 'approved' && item.status !== 'uploaded' && !isPending && !isUploading) {
       setIsDragging(true);
     }
@@ -405,6 +430,8 @@ function ChecklistItem({ item, isUploading, isPending, onUpload }: {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+
+    if (readOnly) return;
 
     if (item.status !== 'approved' && item.status !== 'uploaded' && !isPending && !isUploading) {
       const file = e.dataTransfer.files?.[0];
@@ -446,20 +473,32 @@ function ChecklistItem({ item, isUploading, isPending, onUpload }: {
           </p>
           {item.fileUrl ? (
             <div className="flex items-center gap-2 mt-1">
-              <a href={item.fileUrl} target="_blank" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                <FaPaperclip size={10} /> Arquivo Enviado
-              </a>
+              {canViewFile ? (
+                <a href={item.fileUrl} target="_blank" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                  <FaPaperclip size={10} /> Arquivo Enviado
+                </a>
+              ) : (
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <FaPaperclip size={10} /> Arquivo Enviado (Restrito)
+                </span>
+              )}
               {item.status === 'uploaded' && <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 rounded-sm">Em análise</span>}
             </div>
           ) : (
             <p className={`text-xs mt-1 transition-colors ${isDragging ? 'text-[#960000] font-semibold' : 'text-blue-400'}`}>
-              {isDragging ? 'Solte o arquivo aqui' : 'Aguardando envio'}
+              {item.status === 'approved' || item.status === 'uploaded'
+                ? 'Documento enviado'
+                : readOnly
+                  ? 'Aguardando envio'
+                  : isDragging
+                    ? 'Solte o arquivo aqui'
+                    : 'Pendente de envio'}
             </p>
           )}
         </div>
       </div>
 
-      {item.status !== 'approved' && item.status !== 'uploaded' && (
+      {item.status !== 'approved' && item.status !== 'uploaded' && !readOnly && (
         <div className="relative overflow-hidden">
           <input
             type="file"
@@ -577,13 +616,43 @@ function DocumentationTabs({ checklist, uploadingItems, isPending, onUpload, onT
 }
 
 // DocumentationTabs Component using Shadcn UI
-function DocumentationTabsShadcn({ checklist, uploadingItems, isPending, onUpload, onToggle }: {
+function DocumentationTabsShadcn({ checklist, uploadingItems, isPending, onUpload, onToggle, userRole }: {
   checklist: SaleStepChecklistItem[],
   uploadingItems: Set<string>,
   isPending: boolean,
   onUpload: (id: string, file: File) => void,
-  onToggle: (id: string, checked: boolean) => void
+  onToggle: (id: string, checked: boolean) => void,
+  userRole: UserRole
 }) {
+
+  const getTabsConfig = () => {
+    const allTabs = [
+      { value: 'property', label: 'Imóvel' },
+      { value: 'seller', label: 'Vendedores' },
+      { value: 'buyer', label: 'Compradores' }
+    ];
+
+    if (userRole === 'comprador') {
+      return [
+        { value: 'buyer', label: 'Compradores' },
+        { value: 'property', label: 'Imóvel' },
+        { value: 'seller', label: 'Vendedores' }
+      ];
+    }
+
+    if (userRole === 'vendedor') {
+      return [
+        { value: 'seller', label: 'Vendedores' },
+        { value: 'property', label: 'Imóvel' },
+        { value: 'buyer', label: 'Compradores' }
+      ];
+    }
+
+    return allTabs;
+  };
+
+  const tabs = getTabsConfig();
+  const defaultTab = tabs[0].value;
 
   const categories: Record<string, 'property' | 'seller' | 'buyer'> = {
     // Property
@@ -615,7 +684,22 @@ function DocumentationTabsShadcn({ checklist, uploadingItems, isPending, onUploa
     });
   };
 
-  const renderList = (items: SaleStepChecklistItem[]) => (
+  const isAllowedToUpload = (category: 'property' | 'seller' | 'buyer') => {
+    if (userRole === 'admin' || userRole === 'corretor') return true;
+    if (userRole === 'parceiro') return false;
+
+    if (userRole === 'comprador') {
+      return category === 'buyer';
+    }
+
+    if (userRole === 'vendedor') {
+      return category === 'seller' || category === 'property';
+    }
+
+    return false;
+  };
+
+  const renderList = (items: SaleStepChecklistItem[], category: 'property' | 'seller' | 'buyer') => (
     <div className="space-y-4">
       {items.length > 0 ? (
         items.map((item) => (
@@ -625,6 +709,8 @@ function DocumentationTabsShadcn({ checklist, uploadingItems, isPending, onUploa
             isUploading={uploadingItems.has(item.id)}
             isPending={isPending}
             onUpload={onUpload}
+            readOnly={!isAllowedToUpload(category)}
+            canViewFile={isAllowedToUpload(category)}
           />
         ))
       ) : (
@@ -636,37 +722,160 @@ function DocumentationTabsShadcn({ checklist, uploadingItems, isPending, onUploa
   );
 
   return (
-    <Tabs defaultValue="property">
+    <Tabs defaultValue={defaultTab}>
       <TabsList className="grid w-full max-w-[450px] grid-cols-3 mb-6 bg-gray-100/50 p-1 rounded-xl">
-        <TabsTrigger
-          value="property"
-          className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#960000] data-[state=active]:shadow-sm font-semibold transition-all"
-        >
-          Imóvel
-        </TabsTrigger>
-        <TabsTrigger
-          value="seller"
-          className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#960000] data-[state=active]:shadow-sm font-semibold transition-all"
-        >
-          Vendedores
-        </TabsTrigger>
-        <TabsTrigger
-          value="buyer"
-          className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#960000] data-[state=active]:shadow-sm font-semibold transition-all"
-        >
-          Compradores
-        </TabsTrigger>
+        {tabs.map(tab => (
+          <TabsTrigger
+            key={tab.value}
+            value={tab.value}
+            className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#960000] data-[state=active]:shadow-sm font-semibold transition-all"
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
 
       <div className="bg-blue-50/30 rounded-xl p-6 border border-blue-50">
         <TabsContent value="property" className="mt-0">
-          {renderList(getItemsByCategory('property'))}
+          {renderList(getItemsByCategory('property'), 'property')}
         </TabsContent>
         <TabsContent value="seller" className="mt-0">
-          {renderList(getItemsByCategory('seller'))}
+          {renderList(getItemsByCategory('seller'), 'seller')}
         </TabsContent>
         <TabsContent value="buyer" className="mt-0">
-          {renderList(getItemsByCategory('buyer'))}
+          {renderList(getItemsByCategory('buyer'), 'buyer')}
+        </TabsContent>
+      </div>
+    </Tabs>
+  );
+}
+
+// FinancingTabs Component using Shadcn UI
+function FinancingTabsShadcn({ checklist, uploadingItems, isPending, onUpload, userRole }: {
+  checklist: SaleStepChecklistItem[],
+  uploadingItems: Set<string>,
+  isPending: boolean,
+  onUpload: (id: string, file: File) => void,
+  userRole: UserRole
+}) {
+
+  const getTabsConfig = () => {
+    const allTabs = [
+      { value: 'buyer', label: 'Compradores' },
+      { value: 'seller', label: 'Vendedores' },
+      { value: 'process', label: 'Processo' }
+    ];
+
+    if (userRole === 'comprador') {
+      return [
+        { value: 'buyer', label: 'Compradores' },
+        { value: 'process', label: 'Processo' },
+        { value: 'seller', label: 'Vendedores' }
+      ];
+    }
+
+    if (userRole === 'vendedor') {
+      return [
+        { value: 'seller', label: 'Vendedores' },
+        { value: 'process', label: 'Processo' },
+        { value: 'buyer', label: 'Compradores' }
+      ];
+    }
+
+    return allTabs;
+  };
+
+  const tabs = getTabsConfig();
+  const defaultTab = tabs[0].value;
+
+  const categories: Record<string, 'buyer' | 'seller' | 'process'> = {
+    // Buyer
+    "id_doc_buyer": "buyer",
+    "civil_status_buyer": "buyer",
+    "proof_residence_buyer": "buyer",
+    "paystubs": "buyer",
+    "irpf": "buyer",
+    "pis": "buyer",
+    "fgts_statement": "buyer",
+
+    // Seller
+    "id_doc_seller": "seller",
+    "civil_status_seller": "seller",
+    "proof_residence_seller": "seller",
+
+    // Process
+    "finance_approval": "process",
+    "engineering_eval": "process",
+    "bank_contract": "process"
+  };
+
+  const getItemsByCategory = (category: 'buyer' | 'seller' | 'process') => {
+    return checklist.filter(item => {
+      const itemCat = categories[item.id] || 'process'; // Default to process if not mapped
+      return itemCat === category;
+    });
+  };
+
+  const isAllowedToUpload = (category: 'buyer' | 'seller' | 'process') => {
+    if (userRole === 'admin' || userRole === 'corretor') return true;
+    if (userRole === 'parceiro') return false;
+
+    if (userRole === 'comprador') {
+      return category === 'buyer' || category === 'process';
+    }
+
+    if (userRole === 'vendedor') {
+      return category === 'seller';
+    }
+
+    return false;
+  };
+
+  const renderList = (items: SaleStepChecklistItem[], category: 'buyer' | 'seller' | 'process') => (
+    <div className="space-y-4">
+      {items.length > 0 ? (
+        items.map((item) => (
+          <ChecklistItem
+            key={item.id}
+            item={item}
+            isUploading={uploadingItems.has(item.id)}
+            isPending={isPending}
+            onUpload={onUpload}
+            readOnly={!isAllowedToUpload(category)}
+            canViewFile={isAllowedToUpload(category)}
+          />
+        ))
+      ) : (
+        <div className="text-center py-8 text-gray-500 text-sm">
+          Nenhum documento necessário nesta categoria.
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Tabs defaultValue={defaultTab}>
+      <TabsList className="grid w-full max-w-[450px] grid-cols-3 mb-6 bg-gray-100/50 p-1 rounded-xl">
+        {tabs.map(tab => (
+          <TabsTrigger
+            key={tab.value}
+            value={tab.value}
+            className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#960000] data-[state=active]:shadow-sm font-semibold transition-all"
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      <div className="bg-blue-50/30 rounded-xl p-6 border border-blue-50">
+        <TabsContent value="buyer" className="mt-0">
+          {renderList(getItemsByCategory('buyer'), 'buyer')}
+        </TabsContent>
+        <TabsContent value="seller" className="mt-0">
+          {renderList(getItemsByCategory('seller'), 'seller')}
+        </TabsContent>
+        <TabsContent value="process" className="mt-0">
+          {renderList(getItemsByCategory('process'), 'process')}
         </TabsContent>
       </div>
     </Tabs>

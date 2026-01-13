@@ -20,6 +20,16 @@ export default async function SalesPage() {
           const currentStep = sale.steps[sale.current_step_index];
           const progress = ((sale.current_step_index) / sale.steps.length) * 100;
 
+          const getPaymentLabel = (type?: string) => {
+            switch (type) {
+              case 'cash': return 'À Vista';
+              case 'financing': return 'Financiamento';
+              case 'mixed': return 'Misto';
+              case 'rent_to_own': return 'Aluguel com Opção';
+              default: return 'Outro';
+            }
+          };
+
           return (
             <Link href={`/dashboard/vendas/${sale.id}`} key={sale.id} className="block group">
               <div className="bg-white rounded-[24px] p-8 border border-gray-200 hover:shadow-lg hover:border-gray-300 transition-all duration-300">
@@ -70,11 +80,14 @@ export default async function SalesPage() {
                       <FaRegMoneyBillAlt size={14} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-gray-400 text-xs uppercase tracking-wider">Valor</span>
+                      <span className="text-gray-400 text-xs uppercase tracking-wider">Valor e Pagamento</span>
                       <span className="font-semibold text-gray-900">
                         {sale.offer?.offer_amount
                           ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.offer.offer_amount)
                           : "R$ 0,00"}
+                      </span>
+                      <span className="text-xs text-gray-500 font-medium">
+                        {getPaymentLabel(sale.offer?.payment_type)}
                       </span>
                     </div>
                   </div>

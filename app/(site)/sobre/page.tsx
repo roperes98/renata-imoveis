@@ -20,6 +20,60 @@ const roleMaps: Record<string, Record<string, string>> = {
   },
 };
 
+export const metadata: Metadata = {
+  title: "Sobre",
+  description: "Conheça a história e os valores da Renata Imóveis, sua imobiliária de confiança.",
+  icons: {
+    icon: "/icon.svg",
+  },
+  keywords: ["imóveis", "apartamentos", "casas", "terrenos", "imobiliária", "Rio de Janeiro", "Renata Imóveis"],
+  openGraph: {
+    title: "Renata Imóveis | Sobre",
+    description: "Conheça a história e os valores da Renata Imóveis, sua imobiliária de confiança.",
+    type: "website",
+    locale: "pt-BR",
+    siteName: "Renata Imóveis",
+    url: "https://renataimoveis.com.br/sobre",
+    images: [
+      {
+        url: "https://renataimoveis.com.br/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Renata Imóveis | Sobre",
+      },
+    ],
+  },
+  twitter: {
+    title: "Renata Imóveis | Sobre",
+    description: "Conheça a história e os valores da Renata Imóveis, sua imobiliária de confiança.",
+    card: "summary_large_image",
+    images: [
+      {
+        url: "https://renataimoveis.com.br/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Renata Imóveis | Sobre",
+      },
+    ],
+  },
+  alternates: {
+    canonical: "https://renataimoveis.com.br/sobre",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      nocache: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
+};
+
 function getGender(agent: Agent): "male" | "female" {
   if (agent.gender === "male" || agent.gender === "female") return agent.gender;
   // Infer from name ending in 'a' (heuristic)
@@ -48,11 +102,6 @@ function formatRoles(agent: Agent): string {
   const lastRole = translatedRoles.pop();
   return `${translatedRoles.join(", ")} e ${lastRole}`;
 }
-
-export const metadata: Metadata = {
-  title: "Sobre Nós - Renata Imóveis",
-  description: "Conheça a história e os valores da Renata Imóveis, sua imobiliária de confiança.",
-};
 
 export default async function Sobre() {
   const agents = await getAgentsForTeam();

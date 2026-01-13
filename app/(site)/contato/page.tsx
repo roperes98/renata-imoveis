@@ -5,8 +5,57 @@ import Link from "next/link";
 import { IoLogoWhatsapp } from "react-icons/io5";
 
 export const metadata: Metadata = {
-  title: "Contato - Renata Imóveis",
+  title: "Contato",
   description: "Entre em contato com a Renata Imóveis. Estamos prontos para ajudar você a encontrar o imóvel dos seus sonhos.",
+  icons: {
+    icon: "/icon.svg",
+  },
+  keywords: ["imóveis", "apartamentos", "casas", "terrenos", "imobiliária", "Rio de Janeiro", "Renata Imóveis"],
+  openGraph: {
+    title: "Renata Imóveis | Contato",
+    description: "Entre em contato com a Renata Imóveis. Estamos prontos para ajudar você a encontrar o imóvel dos seus sonhos.",
+    type: "website",
+    locale: "pt-BR",
+    siteName: "Renata Imóveis",
+    url: "https://renataimoveis.com.br/contato",
+    images: [
+      {
+        url: "https://renataimoveis.com.br/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Renata Imóveis | Contato",
+      },
+    ],
+  },
+  twitter: {
+    title: "Renata Imóveis | Contato",
+    description: "Entre em contato com a Renata Imóveis. Estamos prontos para ajudar você a encontrar o imóvel dos seus sonhos.",
+    card: "summary_large_image",
+    images: [
+      {
+        url: "https://renataimoveis.com.br/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Renata Imóveis | Contato",
+      },
+    ],
+  },
+  alternates: {
+    canonical: "https://renataimoveis.com.br/contato",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      nocache: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function Contato() {

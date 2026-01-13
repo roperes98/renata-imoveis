@@ -94,7 +94,7 @@ const MOCK_SALES: SaleProcess[] = SALES_STEPS_TEMPLATE.map((targetStep, index) =
       checklist: s.checklist?.map(item => {
         const itemStatus = (status === "completed" ? "approved" :
           (status === "in_progress" && Math.random() > 0.5) ? "uploaded" : "pending") as "pending" | "uploaded" | "approved" | "rejected";
-        
+
         // Para certidões que precisam de cuidado, adiciona datas de upload e expiração
         const needsCare = [
           "cert_receita", "cert_justica", "cert_trabalhista", "cert_fiscal_fazendaria",
@@ -123,7 +123,7 @@ const MOCK_SALES: SaleProcess[] = SALES_STEPS_TEMPLATE.map((targetStep, index) =
         return {
           ...item,
           status: itemStatus,
-          fileUrl: (status === "completed" || status === "in_progress") ? "https://example.com/doc.pdf" : undefined,
+          fileUrl: (itemStatus === "approved" || itemStatus === "uploaded") ? "https://example.com/doc.pdf" : undefined,
           uploadedAt,
           expiresAt,
           validityDays,

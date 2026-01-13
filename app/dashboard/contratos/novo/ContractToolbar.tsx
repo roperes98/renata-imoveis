@@ -12,7 +12,9 @@ import {
   AlignJustify,
   Heading2,
   Undo,
-  Redo
+  Redo,
+  Heading1,
+  Heading3
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -23,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 
 interface ContractToolbarProps {
   editor: Editor | null;
@@ -51,7 +54,7 @@ export function ContractToolbar({ editor }: ContractToolbarProps) {
   }
 
   return (
-    <div className="border border-input bg-transparent rounded-md p-1 flex items-center gap-1 mb-2 flex-wrap">
+    <div className="flex w-fit items-center gap-1 border rounded-md p-1 border-input">
       <Toggle
         size="sm"
         pressed={editor.isActive("bold")}
@@ -74,11 +77,29 @@ export function ContractToolbar({ editor }: ContractToolbarProps) {
 
       <Toggle
         size="sm"
+        pressed={editor.isActive("heading", { level: 1 })}
+        onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+        aria-label="Toggle heading"
+      >
+        <Heading1 className="h-4 w-4" />
+      </Toggle>
+
+      <Toggle
+        size="sm"
         pressed={editor.isActive("heading", { level: 2 })}
         onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         aria-label="Toggle heading"
       >
         <Heading2 className="h-4 w-4" />
+      </Toggle>
+
+      <Toggle
+        size="sm"
+        pressed={editor.isActive("heading", { level: 3 })}
+        onPressedChange={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        aria-label="Toggle heading"
+      >
+        <Heading3 className="h-4 w-4" />
       </Toggle>
 
       <Separator orientation="vertical" className="h-6 mx-1" />
@@ -140,11 +161,32 @@ export function ContractToolbar({ editor }: ContractToolbarProps) {
       <Separator orientation="vertical" className="h-6 mx-1" />
 
       <Select
-        value={editor.getAttributes('textStyle').fontSize || "14px"} // Default to 14px
+        value={editor.getAttributes('textStyle').fontFamily ? editor.getAttributes('textStyle').fontFamily.split(',')[0].replace(/['"]/g, '').trim() : "Helvetica"}
+        onValueChange={(value) => editor.chain().focus().setFontFamily(value).run()}
+      >
+        <SelectTrigger className="h-8 w-[120px]">
+          <SelectValue placeholder="Fonte" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Inter">Inter</SelectItem>
+          <SelectItem value="Arial">Arial</SelectItem>
+          <SelectItem value="Helvetica">Helvetica</SelectItem>
+          <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+          <SelectItem value="Georgia">Georgia</SelectItem>
+          <SelectItem value="Garamond">Garamond</SelectItem>
+          <SelectItem value="Courier New">Courier New</SelectItem>
+          <SelectItem value="Verdana">Verdana</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Separator orientation="vertical" className="h-6 mx-1" />
+
+      <Select
+        value={editor.getAttributes('textStyle').fontSize || "12px"} // Default to 12px
         onValueChange={(value) => editor.chain().focus().setFontSize(value).run()}
       >
         <SelectTrigger className="h-8 w-[70px]">
-          <SelectValue placeholder="14px" />
+          <SelectValue placeholder="12px" />
         </SelectTrigger>
         <SelectContent>
           {[12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72].map((size) => (

@@ -43,7 +43,9 @@ export function generateBaseContract(sale?: SaleProcess): string {
   let html = "";
 
   // Título
-  html += `<h4>CONTRATO DE SINAL, PRINCÍPIO DE PAGAMENTO E PROMESSA DE COMPRA E VENDA DE IMÓVEL${hasFinancing ? " COM CONDIÇÃO DE FINANCIAMENTO POR AGENTE FINANCEIRO" : ""}</h4>`;
+  // Título
+  // Título
+  html += `<h1 style="text-align: center;"><span style="font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: 800; text-transform: uppercase;">CONTRATO DE SINAL, PRINCÍPIO DE PAGAMENTO E PROMESSA DE COMPRA E VENDA DE IMÓVEL${hasFinancing ? " COM CONDIÇÃO DE FINANCIAMENTO POR AGENTE FINANCEIRO" : ""}</span></h1>`;
 
   // Preâmbulo
   html += `<p>Que entre si faz${isMultipleSellers ? "em" : ""}, como <strong>PROMITENTE VENDEDOR${isMultipleSellers ? "ES" : "A"}</strong>: ${b(sellerNames)}${sellerEmails ? `, com endereço${isMultipleSellers ? "s" : ""} eletrônico${isMultipleSellers ? "s" : ""}: ${sellerEmails}` : ""}, denominad${isMultipleSellers ? "os" : "a"} vendedor${isMultipleSellers ? "es" : "a"};</p>`;

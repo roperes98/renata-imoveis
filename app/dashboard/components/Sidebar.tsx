@@ -1,5 +1,7 @@
 "use client";
 
+import { useUserRole, UserRole } from "@/app/context/UserRoleContext";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FaSignOutAlt, FaCog } from "react-icons/fa";
@@ -9,14 +11,16 @@ import { PiBuildingsFill } from "react-icons/pi";
 import { BsBarChartFill, BsFillHousesFill } from "react-icons/bs";
 import { MdPeopleAlt, MdRealEstateAgent, MdWork } from "react-icons/md";
 import { LuChevronsLeft, LuChevronsRight } from "react-icons/lu";
+import { Popover, PopoverContent } from "@/components/ui/popover";
+import { PopoverTrigger } from "@radix-ui/react-popover";
 
 const menuItems = [
-  { name: "Dashboard", icon: BsBarChartFill, href: "/dashboard" },
-  { name: "Imóveis", icon: BsFillHousesFill, href: "/dashboard/imoveis" },
-  { name: "Condomínios", icon: PiBuildingsFill, href: "/dashboard/condominios" },
-  { name: "Vendas", icon: MdRealEstateAgent, href: "/dashboard/vendas" },
-  { name: "Clientes", icon: MdPeopleAlt, href: "/dashboard/clientes" },
-  { name: "Time", icon: MdWork, href: "/dashboard/time" },
+  { name: "Dashboard", icon: BsBarChartFill, href: "/dashboard", roles: ["admin", "corretor", "parceiro"] },
+  { name: "Imóveis", icon: BsFillHousesFill, href: "/dashboard/imoveis", roles: ["admin", "comprador", "vendedor", "corretor", "parceiro"] },
+  { name: "Condomínios", icon: PiBuildingsFill, href: "/dashboard/condominios", roles: ["admin", "corretor"] },
+  { name: "Vendas", icon: MdRealEstateAgent, href: "/dashboard/vendas", roles: ["admin", "comprador", "vendedor", "corretor", "parceiro"] },
+  { name: "Clientes", icon: MdPeopleAlt, href: "/dashboard/clientes", roles: ["admin", "corretor"] },
+  { name: "Time", icon: MdWork, href: "/dashboard/time", roles: ["admin", "comprador", "vendedor", "corretor", "parceiro"] },
 ];
 
 interface SidebarProps {
@@ -26,6 +30,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isCollapsed = false, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
+  const { role, setRole } = useUserRole();
 
   const isActive = (path: string) => {
     if (path === "/dashboard" && pathname !== "/dashboard") return false;
@@ -57,7 +62,7 @@ export default function Sidebar({ isCollapsed = false, toggleSidebar }: SidebarP
 
         {/* Navigation */}
         <nav className="flex-1 space-y-2 px-3 py-6">
-          {menuItems.map((item) => {
+          {menuItems.filter(item => item.roles.includes(role)).map((item) => {
             return (
               <Link
                 key={item.href}
@@ -77,15 +82,30 @@ export default function Sidebar({ isCollapsed = false, toggleSidebar }: SidebarP
 
         {/* Bottom Actions */}
         <div className={`border-t border-white/20 p-4 space-y-2 ${isCollapsed ? "flex flex-col items-center" : ""}`}>
-          <Link
-            href="/dashboard/settings"
-            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors ${isCollapsed ? "justify-center" : ""
-              }`}
-            title={isCollapsed ? "Ajustes" : ""}
-          >
-            <FaCog className="text-xl" />
-            {!isCollapsed && <span>Ajustes</span>}
-          </Link>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors ${isCollapsed ? "justify-center" : ""}`}>
+                <FaCog className="text-xl" />
+                {!isCollapsed && <span>Ajustes</span>}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48" side="top">
+              <p className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Simular Papel</p>
+              <div className="space-y-1">
+                {(["comprador", "vendedor", "corretor", "parceiro"] as UserRole[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => {
+                      setRole(r);
+                    }}
+                    className={`block w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors ${role === r ? "bg-[#960000] text-white" : "hover:bg-gray-100"}`}
+                  >
+                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors ${isCollapsed ? "justify-center" : ""

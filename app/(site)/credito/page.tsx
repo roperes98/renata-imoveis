@@ -3,8 +3,57 @@ import Link from "next/link";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Crédito Imobiliário - Renata Imóveis",
+  title: "Renata Imóveis | Crédito Imobiliário",
   description: "Simule seu financiamento imobiliário com as principais instituições financeiras e confira dicas importantes.",
+  icons: {
+    icon: "/icon.svg",
+  },
+  keywords: ["imóveis", "apartamentos", "casas", "terrenos", "imobiliária", "Rio de Janeiro", "Renata Imóveis"],
+  openGraph: {
+    title: "Renata Imóveis | Crédito Imobiliário",
+    description: "Simule seu financiamento imobiliário com as principais instituições financeiras e confira dicas importantes.",
+    type: "website",
+    locale: "pt-BR",
+    siteName: "Renata Imóveis",
+    url: "https://renataimoveis.com.br/credito",
+    images: [
+      {
+        url: "https://renataimoveis.com.br/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Renata Imóveis | Crédito Imobiliário",
+      },
+    ],
+  },
+  twitter: {
+    title: "Renata Imóveis | Crédito Imobiliário",
+    description: "Simule seu financiamento imobiliário com as principais instituições financeiras e confira dicas importantes.",
+    card: "summary_large_image",
+    images: [
+      {
+        url: "https://renataimoveis.com.br/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Renata Imóveis | Crédito Imobiliário",
+      },
+    ],
+  },
+  alternates: {
+    canonical: "https://renataimoveis.com.br/credito",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      nocache: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
 };
 
 const banks = [

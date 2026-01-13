@@ -117,16 +117,19 @@ export const SALES_STEPS_TEMPLATE: Omit<SaleStep, "updated_at">[] = [
     actionType: "upload",
     optional: true,
     checklist: [
-      // Documents for Financing
-      { id: "id_doc", label: "Identidade ou CNH", required: true, status: "pending" },
-      { id: "civil_status", label: "Certidão de Estado Civil (Casamento ou Nascimento)", required: true, status: "pending" },
-      { id: "proof_residence", label: "Comprovante de Residência Atualizado", required: true, status: "pending" },
+      // Buyer Docs
+      { id: "id_doc_buyer", label: "Identidade ou CNH (Comprador)", required: true, status: "pending" },
+      { id: "civil_status_buyer", label: "Certidão de Estado Civil (Comprador)", required: true, status: "pending" },
+      { id: "proof_residence_buyer", label: "Comprovante de Residência (Comprador)", required: true, status: "pending" },
       { id: "paystubs", label: "3 Últimos Contra-cheques", required: true, status: "pending" },
-
-      // Documents for FGTS
       { id: "irpf", label: "Imposto de Renda Completo com Recibo (uso FGTS)", required: false, status: "pending" },
       { id: "pis", label: "PIS (uso FGTS)", required: false, status: "pending" },
       { id: "fgts_statement", label: "Extrato do FGTS (uso FGTS)", required: false, status: "pending" },
+
+      // Seller Docs
+      { id: "id_doc_seller", label: "Identidade ou CNH (Vendedores)", required: true, status: "pending" },
+      { id: "civil_status_seller", label: "Certidão de Estado Civil (Vendedores)", required: true, status: "pending" },
+      { id: "proof_residence_seller", label: "Comprovante de Residência (Vendedores)", required: true, status: "pending" },
 
       // Process Outputs
       { id: "finance_approval", label: "Carta de Aprovação de Crédito", required: true, status: "pending" },
@@ -172,7 +175,6 @@ export const SALES_STEPS_TEMPLATE: Omit<SaleStep, "updated_at">[] = [
     actionType: "manual",
     checklist: [
       { id: "final_inspection", label: "Vistoria Final Realizada", required: true, status: "pending" },
-      { id: "utility_transfer", label: "Transferência de Contas (Luz/Gás)", required: false, status: "pending" },
       { id: "keys_receipt", label: "Termo de Entrega de Chaves", required: true, status: "pending" }
     ]
   },
