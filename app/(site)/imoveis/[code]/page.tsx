@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
+import { PropertyDisplay } from "@/app/lib/types/database";
 
 import { getPropertyByCode, getProperties } from "@/app/lib/supabase/properties";
 import { formatPrice, formatArea, getPropertyTypeLabel, getDaysSinceCreated, getDaysSinceUpdated } from "@/app/lib/utils/format";
@@ -57,7 +59,7 @@ export async function generateMetadata({
       url: `https://renataimoveis.com.br/imoveis/${property.code}`,
       images: [
         {
-          url: property.images?.[0] || "https://renataimoveis.com.br/og-image.png",
+          url: property.images?.[0]?.url || "https://renataimoveis.com.br/og-image.png",
           width: 1200,
           height: 630,
           alt: `Renata Imóveis | Imóvel ${property.code}`,
@@ -107,14 +109,7 @@ export default async function PropertyDetailPage({
     notFound();
   }
 
-  // Placeholder images for the gallery until backend supports multiple images
-  const images = [
-    "https://www.quintoandar.com.br/guias/wp-content/uploads/2023/06/casa-de-luxo-7-1.jpg", // Main
-    "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?q=80&w=800&auto=format&fit=crop"
-  ];
+
 
   /* Helper to map property type to Schema.org type */
   function getSchemaType(type: string) {
@@ -151,7 +146,7 @@ export default async function PropertyDetailPage({
       '@type': 'Brand',
       name: 'Renata Imóveis',
     },
-    image: property.images?.[0] || 'https://renataimoveis.com.br/og-image.png',
+    image: property.images?.[0]?.url || 'https://renataimoveis.com.br/og-image.png',
     offers: {
       '@type': 'Offer',
       price: property.sale_price,
@@ -220,7 +215,16 @@ export default async function PropertyDetailPage({
 
           {/* Gallery Grid */}
           {/* Gallery Grid */}
-          <ImageGallery images={images} />
+          {/* Gallery Grid */}
+          <ImageGallery
+            images={[
+              ...(property.images || []),
+              ...(property.condominiums?.images?.map(img => ({
+                ...img,
+                tag: `${img.tag || ""} | Condomínio`
+              })) || [])
+            ]}
+          />
         </div>
 
         {/* Main Content & Sidebar */}
@@ -266,14 +270,14 @@ export default async function PropertyDetailPage({
                   <span className="text-xs text-gray-500">{property.suites} suítes</span>
                 </div>
                 <div className="border border-gray-100 rounded-xl p-4 flex flex-col items-start hover:shadow-sm transition-shadow">
-                  <IoCarSportOutline className="text-3xl text-[#960000] mb-2" />
-                  <span className="text-lg font-bold text-[#1e1e1e]">{property.parking_spaces}</span>
-                  <span className="text-xs text-gray-500">Vagas</span>
-                </div>
-                <div className="border border-gray-100 rounded-xl p-4 flex flex-col items-start hover:shadow-sm transition-shadow">
                   <PiBathtub className="text-3xl text-[#960000] mb-2" />
                   <span className="text-lg font-bold text-[#1e1e1e]">{property.bathrooms}</span>
                   <span className="text-xs text-gray-500">Banheiros</span>
+                </div>
+                <div className="border border-gray-100 rounded-xl p-4 flex flex-col items-start hover:shadow-sm transition-shadow">
+                  <IoCarSportOutline className="text-3xl text-[#960000] mb-2" />
+                  <span className="text-lg font-bold text-[#1e1e1e]">{property.parking_spaces}</span>
+                  <span className="text-xs text-gray-500">Vagas</span>
                 </div>
               </div>
 
@@ -482,7 +486,9 @@ export default async function PropertyDetailPage({
           {/* Similar Properties Carousel */}
           <div>
             <h2 className="text-xl font-bold text-[#1e1e1e] mb-6">Imóveis semelhantes</h2>
-            <SimilarProperties propertyType={property.type} currentPropertyId={property.id} />
+            <Suspense fallback={<div className="h-[400px] bg-gray-50 rounded-xl animate-pulse flex items-center justify-center text-gray-400">Carregando imóveis semelhantes...</div>}>
+              <SimilarProperties currentProperty={property} />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -491,22 +497,146 @@ export default async function PropertyDetailPage({
 }
 
 // Separate component for async data fetching of similar properties
-async function SimilarProperties({ propertyType, currentPropertyId }: { propertyType: any, currentPropertyId: string }) {
-  const allSimilar = await getProperties({ type: propertyType, limit: 10 });
-  const similarProperties = allSimilar.filter(p => p.id !== currentPropertyId);
+// Separate component for async data fetching of similar properties
+async function SimilarProperties({ currentProperty }: { currentProperty: PropertyDisplay }) {
+  // Strategy:
+  // 1. Get properties in the SAME Condominium (if applicable)
+  // 2. Get properties with similar characteristics (Status, Type, Location, Price, Area)
 
-  if (similarProperties.length === 0) {
+  const promises = [];
+
+  // 1. Condominium Matches
+  if (currentProperty.condominium_id) {
+    promises.push(
+      getProperties({
+        condominiumId: currentProperty.condominium_id,
+        status: currentProperty.status, // Same status usually makes sense, but maybe we want all in condo? Let's stick to status.
+        limit: 5
+      })
+    );
+  } else {
+    promises.push(Promise.resolve({ data: [], count: 0 }));
+  }
+
+  // 2. Similar Specs Matches
+  // Price +/- 25%
+  const minPrice = currentProperty.sale_price ? currentProperty.sale_price * 0.75 : undefined;
+  const maxPrice = currentProperty.sale_price ? currentProperty.sale_price * 1.25 : undefined;
+
+  // Area +/- 25%
+  const minArea = currentProperty.usable_area ? currentProperty.usable_area * 0.75 : undefined;
+  const maxArea = currentProperty.usable_area ? currentProperty.usable_area * 1.25 : undefined;
+
+  promises.push(
+    getProperties({
+      status: currentProperty.status,
+      type: currentProperty.type,
+      city: currentProperty.address_city, // Broaden to city, prefer neighborhood in sort if possible or just rely on price/area to narrow
+      neighborhood: currentProperty.address_neighborhood, // Try neighborhood first? getProperties treats this as strict AND.
+      // If we are too strict, we get nothing.
+      // Let's relax neighborhood for the query but we can client-side sort if we want.
+      // Actually, let's just match on City + Price + Area + Type. That is usually a good "Similar" set.
+      // If we want to enforce Neighborhood, we can pass it. Let's start with Neighborhood strict.
+      // If we find few, we might want to relax. For now, let's keep it simple: strict neighborhood or just city?
+      // User said "imoveis semelhantes de fato". Comparison usually implies same neighborhood.
+      // Let's try Strict Neighborhood first. (If we strictly filter by neighborhood, we might get 0 results for rare areas).
+      // Ideally we'd do (Neighborhood OR (City AND PriceRange)).
+      // Supabase simple query can't do complex ORs easily.
+      // Let's do a slightly broader query: City + Type + Status + Price Range + Area Range.
+      // And then we can sort/prioritize Neighborhood matches.
+      // removing neighborhood strict filter to ensure we get results, but keeping City.
+      minPrice,
+      maxPrice,
+      minArea,
+      maxArea,
+      limit: 15
+    })
+  );
+
+  const [condoResults, similarResults] = await Promise.all(promises);
+
+  let allMatches = [
+    ...(condoResults.data || []),
+    ...(similarResults.data || [])
+  ];
+
+  // deduplicate and remove current
+  const seen = new Set<string>();
+  const filteredMatches = allMatches.filter(p => {
+    if (p.id === currentProperty.id) return false;
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+
+  // Weighted Scoring System for Relevance
+  function calculateScore(candidate: PropertyDisplay) {
+    let score = 0;
+
+    // 1. Condominium (Highest Priority) - +2000
+    if (currentProperty.condominium_id && candidate.condominium_id === currentProperty.condominium_id) {
+      score += 1000;
+    }
+
+    // 2. Neighborhood - +1000
+    if (candidate.address_neighborhood === currentProperty.address_neighborhood) {
+      score += 1000;
+    }
+
+    // 3. Exact Bedrooms - +300
+    if (candidate.bedrooms === currentProperty.bedrooms) {
+      score += 300;
+    }
+
+    // 4. Exact Suites - +100
+    if (candidate.suites === currentProperty.suites) {
+      score += 100;
+    }
+
+    // 5. Exact Parking - +50
+    if (candidate.parking_spaces === currentProperty.parking_spaces) {
+      score += 50;
+    }
+
+    // 6. Price Closeness (Penalty)
+    // Calculate % difference and penalize.
+    if (currentProperty.sale_price && candidate.sale_price) {
+      const diff = Math.abs(currentProperty.sale_price - candidate.sale_price);
+      const percentDiff = diff / currentProperty.sale_price;
+      // Penalize 10 points for every 1% difference
+      score -= (percentDiff * 1000);
+    }
+
+    // 7. Area Closeness (Penalty)
+    if (currentProperty.usable_area && candidate.usable_area) {
+      const diff = Math.abs(currentProperty.usable_area - candidate.usable_area);
+      const percentDiff = diff / currentProperty.usable_area;
+      // Penalize 5 points for every 1% difference
+      score -= (percentDiff * 500);
+    }
+
+    return score;
+  }
+
+  filteredMatches.sort((a, b) => {
+    return calculateScore(b) - calculateScore(a);
+  });
+
+  const finalMatches = filteredMatches.slice(0, 10);
+
+  if (finalMatches.length === 0) {
     return <p className="text-gray-500">Nenhum imóvel semelhante encontrado.</p>;
   }
 
   return (
     <Carousel>
-      {similarProperties.map((prop, index) => (
+      {finalMatches.map((prop, index) => (
         <PropertyCard
+          key={prop.id}
           className="w-[276px]"
           property={prop}
           index={index}
-          imageUrl={prop.images?.[0] || "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=800&auto=format&fit=crop"} // Fallback image if needed, though card handles it usually
+          imageUrl={prop.images?.[0]?.url || null}
         />
       ))}
     </Carousel>

@@ -24,7 +24,7 @@ const PropertyPdfTemplate = forwardRef<HTMLDivElement, PropertyPdfTemplateProps>
     // Determine main image or fallback
     const mainImage =
       property.images && property.images.length > 0
-        ? property.images[0]
+        ? property.images[0].url
         : "https://placehold.co/800x400?text=Sem+Imagem";
 
     // Define colors explicitly to avoid computed style issues (e.g. lab() from tailwind v4)

@@ -73,7 +73,7 @@ export interface RealEstate {
   rent_price: number | null;
   condominium_id: string | null;
   condominium_address_id: string | null;
-  images?: string[] | null;
+  images?: { url: string; tag: string }[] | null;
   zone?: string | null;
   construction_year: number | null;
   iptu_number: string | null;
@@ -128,6 +128,7 @@ export interface Condominium {
   tower_count: number | null;
   construction_year: number | null;
   amenities: string[] | null;
+  images?: { url: string; tag: string }[] | null;
   created_at: string;
 }
 

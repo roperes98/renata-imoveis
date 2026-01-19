@@ -61,11 +61,11 @@ export default function PropertyForm({ condominiums = [], clients = [], agents =
   // Initialize media items from initialData
   useEffect(() => {
     if (initialData?.images && mediaItems.length === 0) {
-      setMediaItems(initialData.images.map((url, index) => ({
+      setMediaItems(initialData.images.map((item, index) => ({
         id: `existing-${index}`,
-        url,
+        url: item.url,
         isNew: false,
-        label: "" // We don't have labels yet
+        label: item.tag || ""
       })));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -541,7 +541,7 @@ export default function PropertyForm({ condominiums = [], clients = [], agents =
     try {
       // Upload images
       // Upload images
-      const finalImages: string[] = [];
+      const finalImages: { url: string; tag: string }[] = [];
 
       // Process media items in order
       for (const item of mediaItems) {
@@ -551,10 +551,10 @@ export default function PropertyForm({ condominiums = [], clients = [], agents =
           const { error: uploadError } = await supabase.storage.from("properties").upload(fileName, item.file);
           if (!uploadError) {
             const { data: { publicUrl } } = supabase.storage.from("properties").getPublicUrl(fileName);
-            finalImages.push(publicUrl);
+            finalImages.push({ url: publicUrl, tag: item.label });
           }
         } else {
-          finalImages.push(item.url);
+          finalImages.push({ url: item.url, tag: item.label });
         }
       }
 

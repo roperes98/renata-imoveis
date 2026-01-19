@@ -5,7 +5,7 @@ import Image from "next/image";
 import { FiCamera, FiX, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 interface ImageGalleryProps {
-  images: string[];
+  images: { url: string; tag: string }[];
 }
 
 export default function ImageGallery({ images }: ImageGalleryProps) {
@@ -63,13 +63,18 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
           onClick={() => openModal(0)}
         >
           <Image
-            src={images[0]}
-            alt="Principal"
+            src={images[0].url}
+            alt={images[0].tag || "Principal"}
             fill
             className="object-cover transition-all duration-500 group-hover:scale-102 group-hover:brightness-110"
             priority
             sizes="(max-width: 768px) 100vw, 50vw"
           />
+          {images[0].tag && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+              <span className="text-white text-sm font-medium">{images[0].tag}</span>
+            </div>
+          )}
         </div>
         {images.slice(1, 5).map((img, idx) => (
           <div
@@ -79,8 +84,8 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
           >
             <div className="relative w-full h-full group">
               <Image
-                src={img}
-                alt={`Foto ${idx + 2}`}
+                src={img.url}
+                alt={img.tag || `Foto ${idx + 2}`}
                 fill
                 className="object-cover transition-all duration-500 group-hover:scale-102 group-hover:brightness-110"
                 sizes="(max-width: 768px) 100vw, 25vw"
@@ -138,17 +143,22 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
           >
             <div className="relative w-full h-[80vh]">
               <Image
-                src={images[currentIndex]}
-                alt={`Foto ${currentIndex + 1}`}
+                src={images[currentIndex].url}
+                alt={images[currentIndex].tag || `Foto ${currentIndex + 1}`}
                 fill
                 className="object-contain"
                 priority
                 quality={100}
               />
+              {images[currentIndex].tag && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-lg text-white text-lg font-medium">
+                  {images[currentIndex].tag}
+                </div>
+              )}
             </div>
 
             {/* Counter */}
-            <div className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 text-white/90 font-medium">
+            <div className="absolute top-[85%] md:top-auto md:bottom-[-40px] left-1/2 -translate-x-1/2 text-white/90 font-medium">
               {currentIndex + 1} de {images.length}
             </div>
           </div>

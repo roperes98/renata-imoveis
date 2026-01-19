@@ -32,13 +32,54 @@ export default function Logo({
       </g>
 
       <defs>
-        {[0, 1, 2, 3].map((i) => (
-          <linearGradient id={`g${i}`} key={i} x1="0" y1="0" x2="1" y2="1">
-            <stop stopColor={colors.light} />
-            <stop offset="0.6" stopColor={colors.mid} />
-            <stop offset="0.92" stopColor={colors.dark} />
-          </linearGradient>
-        ))}
+        <linearGradient
+          id="g0"
+          x1="732.501"
+          x2="611.001"
+          y1="129"
+          y2="292"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor={colors.dark} />
+          <stop offset="0.599" stopColor={colors.mid} />
+          <stop offset="0.928" stopColor={colors.light} />
+        </linearGradient>
+        <linearGradient
+          id="g1"
+          x1="263.001"
+          x2="261.501"
+          y1="22"
+          y2="415"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor={colors.dark} />
+          <stop offset="0.682" stopColor={colors.mid} />
+          <stop offset="0.928" stopColor={colors.light} />
+        </linearGradient>
+        <linearGradient
+          id="g2"
+          x1="0"
+          x2="650.386"
+          y1="489.83"
+          y2="489.83"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor={colors.dark} />
+          <stop offset="0.682" stopColor={colors.mid} />
+          <stop offset="0.928" stopColor={colors.light} />
+        </linearGradient>
+        <linearGradient
+          id="g3"
+          x1="905"
+          x2="426"
+          y1="514"
+          y2="174.5"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor={colors.dark} />
+          <stop offset="0.682" stopColor={colors.mid} />
+          <stop offset="0.928" stopColor={colors.light} />
+        </linearGradient>
 
         <clipPath id="clip0">
           <rect width="854" height="565" fill="white" />
@@ -47,3 +88,4 @@ export default function Logo({
     </svg>
   );
 }
+

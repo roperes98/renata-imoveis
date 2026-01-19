@@ -70,12 +70,14 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   // Fetch featured properties, condominiums and latest Google reviews
-  const [featuredProperties, featuredCondominiums, googleReviews] =
+  const [featuredPropertiesResponse, featuredCondominiums, googleReviews] =
     await Promise.all([
       getProperties({ limit: 10 }),
       getCondominiums(10),
       getBusinessReviews(),
     ]);
+
+  const featuredProperties = featuredPropertiesResponse.data;
 
   // Categories (counts can be fetched dynamically if needed)
   const categories = [
@@ -332,11 +334,7 @@ export default async function Home() {
             </div>
             <Carousel>
               {featuredCondominiums.map((condominium: CondominiumDisplay, index: number) => {
-                // Mock image URL - only from second condominium onwards (index > 0) for debugging
-                // First condominium (index 0) will show fallback
-                const imageUrl = index > 0
-                  ? "https://lopesrio.com.br/wp-content/uploads/2025/03/3-FACHADA-EPIC-1.000-1.jpg"
-                  : null;
+                const imageUrl = condominium.images?.[0]?.url || null;
 
                 return (
                   <CondominiumCard
@@ -385,11 +383,7 @@ export default async function Home() {
             </div>
             <Carousel>
               {featuredProperties.map((property: RealEstate, index: number) => {
-                // Mock image URL - only from second property onwards (index > 0) for debugging
-                // First property (index 0) will show fallback
-                const imageUrl = index > 0
-                  ? "https://hansenimoveis.com/wp-content/uploads/2021/10/Nova-casa-de-luxo-para-aluguel-na-Praia-do-Forte-13.jpg"
-                  : null;
+                const imageUrl = property.images?.[0]?.url || null;
 
                 return (
                   <PropertyCard
@@ -439,11 +433,7 @@ export default async function Home() {
             </div>
             <Carousel>
               {featuredProperties.map((property: RealEstate, index: number) => {
-                // Mock image URL - only from second property onwards (index > 0) for debugging
-                // First property (index 0) will show fallback
-                const imageUrl = index > 0
-                  ? "https://hansenimoveis.com/wp-content/uploads/2021/10/Nova-casa-de-luxo-para-aluguel-na-Praia-do-Forte-13.jpg"
-                  : null;
+                const imageUrl = property.images?.[0]?.url || null;
 
                 return (
                   <PropertyCard
@@ -516,7 +506,7 @@ export default async function Home() {
                   href="https://wa.me/5521998158080"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-8 py-4 rounded-lg hover:bg-[var(--primary-hover)] transition-colors font-semibold"
+                  className="inline-flex items-center gap-2 bg-[#960000] text-white px-8 py-4 rounded-lg hover:bg-[var(--primary-hover)] transition-colors font-semibold"
                 >
                   <svg
                     width="24"

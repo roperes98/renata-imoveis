@@ -153,14 +153,8 @@ export default async function CondominiumDetailPage({
   }, 0);
   const refCode = String(idHash % 1000).padStart(3, '0');
 
-  // Placeholder images
-  const images = [
-    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=1000&auto=format&fit=crop",
-    "https://b3577058.smushcdn.com/3577058/wp-content/uploads/2023/12/condominio-de-luxo-1-1024x576.webp?lossy=1&strip=0&webp=1",
-    "https://www.quintoandar.com.br/guias/wp-content/uploads/2023/12/condominio-de-luxo-3.webp",
-    "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?q=80&w=1000&auto=format&fit=crop"
-  ];
+  // Real images from database
+  const images = condominium.images || [];
 
   const structuredData = {
     '@context': 'https://schema.org',
@@ -452,7 +446,7 @@ export default async function CondominiumDetailPage({
                     key={prop.id}
                     property={prop}
                     index={index}
-                    imageUrl={prop.images?.[0]}
+                    imageUrl={prop.images?.[0]?.url || null}
                   />
                 ))}
               </Carousel>

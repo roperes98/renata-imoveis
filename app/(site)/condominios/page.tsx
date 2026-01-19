@@ -129,11 +129,7 @@ export default async function CondominiosPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {condominiums.map((condominium: CondominiumDisplay, index: number) => {
-                // Mock image URL - only from second condominium onwards (index > 0) for debugging
-                // First condominium (index 0) will show fallback
-                const imageUrl = index > 0
-                  ? "https://lopesrio.com.br/wp-content/uploads/2025/03/3-FACHADA-EPIC-1.000-1.jpg"
-                  : null;
+                const imageUrl = condominium.images?.[0]?.url || null;
 
                 return (
                   <CondominiumCard

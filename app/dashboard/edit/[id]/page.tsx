@@ -95,19 +95,13 @@ export default async function EditPropertyPage(props: EditPropertyPageProps) {
     code: property.code,
     sale_price: property.sale_price ?? 0,
     type: property.type,
-    image: property.images && property.images.length > 0 ? property.images[0] : null
+    image: property.images && property.images.length > 0 ? property.images[0].url : null
   };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <HistoryLogger property={simplifiedProperty} />
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Editar Imóvel
-          </h1>
-        </div>
-      </header>
+
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <PropertyForm
           condominiums={condominiums}

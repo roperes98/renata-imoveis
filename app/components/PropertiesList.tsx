@@ -10,13 +10,26 @@ import { FiSearch, FiFilter } from "react-icons/fi";
 
 interface PropertiesListProps {
   initialProperties: RealEstate[];
+  totalCount: number;
   neighborhoods: string[];
   propertyTypes: string[];
   condominiums: Condominium[];
 }
 
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import PropertyCardSkeleton from "./PropertyCardSkeleton";
+
 export default function PropertiesList({
   initialProperties,
+  totalCount = 0,
   neighborhoods,
   propertyTypes,
   condominiums,
@@ -35,6 +48,11 @@ export default function PropertiesList({
   const [parkingSpaces, setParkingSpaces] = useState("");
   const [sortOption, setSortOption] = useState("newest");
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+  const [totalItems, setTotalItems] = useState(totalCount);
+
   const [properties, setProperties] = useState<RealEstate[]>(initialProperties);
   const [loading, setLoading] = useState(false);
 
@@ -48,13 +66,65 @@ export default function PropertiesList({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Reset to page 1 when filters change (but not when just page changes)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    debouncedSearch,
+    selectedNeighborhood,
+    selectedType,
+    selectedCondo,
+    minPrice,
+    maxPrice,
+    minArea,
+    maxArea,
+    bedrooms,
+    bathrooms,
+    parkingSpaces,
+    sortOption,
+  ]);
+
   useEffect(() => {
     async function filterProperties() {
       setLoading(true);
       try {
         let query = supabase
           .from("real_estate")
-          .select("*")
+          .select(`
+            id,
+            code,
+            type,
+            sale_price,
+            address_street,
+            address_number,
+            address_neighborhood,
+            address_state,
+            usable_area,
+            bedrooms,
+            bathrooms,
+            parking_spaces,
+            created_at,
+            images,
+            status,
+            condominium_id,
+            condominiums (name),
+            condominium_addresses (id),
+            suites,
+            description,
+            condominium_fee,
+            updated_at,
+            address_city,
+            address_zip,
+            address_state,
+            address_number,
+            address_complement,
+            features,
+            youtube_url,
+            virtual_tour_url,
+            transaction_type,
+            real_estate_owners (client:clients (name))
+          `,
+            { count: 'exact' })
           .eq("status", "for_sale");
 
         // Search Query (Code, Neighborhood, Street, City)
@@ -103,10 +173,16 @@ export default function PropertiesList({
             break;
         }
 
-        const { data, error } = await query;
+        // Pagination
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage - 1;
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
-        setProperties((data as RealEstate[]) || []);
+        setProperties((data as unknown as RealEstate[]) || []);
+        if (count !== null) setTotalItems(count);
       } catch (error) {
         console.error("Error filtering properties:", error);
       } finally {
@@ -114,7 +190,30 @@ export default function PropertiesList({
       }
     }
 
-    filterProperties();
+    // Only fetch if filters are changing from initial state or page changed
+    // We can assume initialProperties matches "newest" sorting and no filters and page 1
+    const isInitialState =
+      !debouncedSearch &&
+      !selectedNeighborhood &&
+      !selectedType &&
+      !selectedCondo &&
+      !minPrice &&
+      !maxPrice &&
+      !minArea &&
+      !maxArea &&
+      !bedrooms &&
+      !bathrooms &&
+      !parkingSpaces &&
+      currentPage === 1 &&
+      sortOption === "newest";
+
+    if (!isInitialState) {
+      filterProperties();
+    } else {
+      // Reset to initial properties if filters are cleared
+      setProperties(initialProperties);
+      setTotalItems(totalCount);
+    }
   }, [
     debouncedSearch,
     selectedNeighborhood,
@@ -128,7 +227,15 @@ export default function PropertiesList({
     bathrooms,
     parkingSpaces,
     sortOption,
+    currentPage,
   ]);
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -302,16 +409,16 @@ export default function PropertiesList({
 
       {/* Properties Grid */}
       {loading ? (
-        <div className="text-center py-12">
-          <p className="text-[#4f4f4f]">Carregando imóveis...</p>
+        <div className="grid gap-8 grid-cols-[repeat(auto-fit,minmax(276px,1fr))]">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <PropertyCardSkeleton key={index} />
+          ))}
         </div>
       ) : (
-        <div className="grid gap-8 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
+        <div className="grid gap-8 grid-cols-[repeat(auto-fit,minmax(276px,1fr))]">
           {properties.map((property, index) => {
-            // Mock image URL to match homepage logic
-            const imageUrl = index > 0
-              ? "https://hansenimoveis.com/wp-content/uploads/2021/10/Nova-casa-de-luxo-para-aluguel-na-Praia-do-Forte-13.jpg"
-              : null;
+            // Use actual image or fallback handled by card
+            const imageUrl = property.images?.[0]?.url || null;
 
             return (
               <PropertyCard
@@ -319,6 +426,7 @@ export default function PropertiesList({
                 property={property}
                 imageUrl={imageUrl}
                 index={index}
+                className="w-[276px]"
               />
             );
           })}
@@ -336,6 +444,60 @@ export default function PropertiesList({
           >
             Limpar filtros
           </button>
+        </div>
+      )}
+      {/* Pagination */}
+      {!loading && totalItems > itemsPerPage && (
+        <div className="mt-12">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+
+              {/* Logic to show pages */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => {
+                  // Simple logic: show first, last, and current +/- 1
+                  if (page === 1 || page === totalPages) return true;
+                  if (page >= currentPage - 1 && page <= currentPage + 1) return true;
+                  return false;
+                })
+                .map((page, index, array) => {
+                  // Add ellipsis if gap
+                  const isGap = index > 0 && page - array[index - 1] > 1;
+                  return (
+                    <div key={page} className="flex items-center">
+                      {isGap && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          isActive={page === currentPage}
+                          onClick={() => handlePageChange(page)}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </div>
+                  );
+                })}
+
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
     </>

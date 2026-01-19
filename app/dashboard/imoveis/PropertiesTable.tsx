@@ -89,7 +89,7 @@ export default function PropertiesTable({ properties }: PropertiesTableProps) {
                       {property.images && property.images[0] ? (
                         <img
                           className="h-16 w-16 rounded-lg object-cover"
-                          src={property.images[0]}
+                          src={property.images[0].url}
                           alt={property.code}
                         />
                       ) : (
