@@ -56,6 +56,8 @@ export interface RealEstate {
   address_zip: string;
   address_complement: string;
   address_reference?: string | null;
+  address_lat?: number | null;
+  address_lng?: number | null;
   status: SellingStatus;
   youtube_url: string | null;
   virtual_tour_url: string | null;

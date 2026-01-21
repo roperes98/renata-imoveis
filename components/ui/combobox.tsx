@@ -28,6 +28,7 @@ interface ComboboxProps {
   className?: string
   disabled?: boolean
   modal?: boolean
+  popoverClassName?: string
 }
 
 export function Combobox({
@@ -39,6 +40,7 @@ export function Combobox({
   className,
   disabled = false,
   modal = false,
+  popoverClassName,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -58,7 +60,7 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className={cn("w-full p-0", popoverClassName)}>
         <Command>
           <CommandInput placeholder={placeholder} />
           <CommandList>

@@ -55,7 +55,20 @@ const PROPERTIES_SELECT = `
   youtube_url,
   virtual_tour_url,
   transaction_type,
+  address_lat,
+  address_lng,
   real_estate_owners (client:clients (name))
+`;
+
+const MAP_PROPERTIES_SELECT = `
+  id,
+  code,
+  sale_price,
+  address_street,
+  address_number,
+  address_lat,
+  address_lng,
+  images
 `;
 
 const CONDOMINIUMS_SELECT = `
@@ -66,6 +79,40 @@ const CONDOMINIUMS_SELECT = `
   condominium_addresses (street, number, neighborhood, state),
   construction_infos (stage, delivery_forecast)
 `;
+
+export async function getPropertiesForMap(): Promise<PropertyDisplay[]> {
+  const supabase = createServerClient();
+
+  // We want only properties for sale, for the map
+  const cacheKey = ['properties', 'map_all'];
+  const tags = ['properties'];
+
+  return unstable_cache(
+    async () => {
+      const { data, error } = await supabase
+        .from("real_estate")
+        .select(MAP_PROPERTIES_SELECT)
+        .eq("status", "for_sale")
+        .not("address_lat", "is", null)
+        .not("address_lng", "is", null);
+
+      if (error) {
+        console.error("Error fetching map properties:", error);
+        return [];
+      }
+
+      return (data || []).map((p) => ({
+        ...p,
+        images: p.images?.map((img: any) => ({
+          ...img,
+          url: formatImageUrl(img.url),
+        }))
+      })) as PropertyDisplay[];
+    },
+    cacheKey,
+    { tags: tags, revalidate: 3600 }
+  )();
+}
 
 export async function getProperties(filters?: {
   status?: SellingStatus;
@@ -452,4 +499,3 @@ export async function getPropertiesByCondominiumId(condominiumId: string): Promi
       : property.condominiums,
   })) as PropertyDisplay[];
 }
-
