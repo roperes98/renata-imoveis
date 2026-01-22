@@ -1,6 +1,6 @@
 "use server";
 
-import { signIn, signOut } from "@/auth";
+import { signIn, signOut, auth } from "@/auth";
 import { AuthError } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
@@ -119,8 +119,7 @@ export async function register(
       .insert({
         email,
         password_hash: hashedPassword,
-        full_name: name,
-        role: "user"
+        full_name: name
       })
       .select()
       .single();
@@ -295,3 +294,197 @@ export async function verifyOTP(prevState: string | null | undefined, formData: 
   return null;
 }
 
+
+// Favorites Actions
+
+export async function toggleFavoriteAction(propertyId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Você precisa estar logado para favoritar." };
+  }
+
+  const user = session.user;
+
+  // Get Client ID
+  // First, resolve the correct user_id (handle potential ID mismatch between session and DB)
+  let dbUserId = user.id;
+
+  // Check if we can find the user by ID
+  const { data: userById } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userById) {
+    // ID not found, check by email
+    const { data: userByEmail } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', user.email)
+      .single();
+
+    if (userByEmail) {
+      // Found by email, use this ID
+      dbUserId = userByEmail.id;
+    } else {
+      // Not found by ID or Email, create new user
+      console.log("User missing in public.users, syncing...");
+      const { error: userSyncError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email,
+          full_name: user.name || "Usuário",
+          avatar_url: user.image
+        });
+
+      if (userSyncError) {
+        console.error("Failed to sync user:", userSyncError);
+        return { error: "Erro crítico de sincronização de usuário." };
+      }
+      // dbUserId remains user.id
+    }
+  } else {
+    dbUserId = userById.id;
+  }
+
+  // Now find/create client using the resolved dbUserId
+  let { data: clientData, error: clientError } = await supabaseAdmin
+    .from('clients')
+    .select('id')
+    .eq('user_id', dbUserId)
+    .single();
+
+  if (clientError || !clientData) {
+    // Create missing client profile
+    console.log("Client profile missing for user", dbUserId, "creating one...");
+
+    const { data: newClient, error: createError } = await supabaseAdmin
+      .from('clients')
+      .insert({
+        user_id: dbUserId,
+        name: user.name || "Cliente"
+      })
+      .select('id')
+      .single();
+
+    if (createError || !newClient) {
+      console.error("Failed to auto-create client profile:", createError);
+      return { error: `Erro ao criar perfil: ${createError?.message || "Erro desconhecido"}` };
+    }
+
+    clientData = newClient;
+  }
+
+  // Check if exists
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from('client_favorites')
+    .select('real_estate_id')
+    .eq('client_id', clientData.id)
+    .eq('real_estate_id', propertyId)
+    .single();
+
+  if (existing) {
+    // Remove
+    const { error } = await supabaseAdmin
+      .from('client_favorites')
+      .delete()
+      .eq('client_id', clientData.id)
+      .eq('real_estate_id', propertyId);
+
+    if (error) return { error: "Erro ao remover favorito." };
+    return { isFavorite: false };
+  } else {
+    // Add
+    const { error } = await supabaseAdmin
+      .from('client_favorites')
+      .insert({
+        client_id: clientData.id,
+        real_estate_id: propertyId
+      });
+
+    if (error) return { error: "Erro ao adicionar favorito." };
+    return { isFavorite: true };
+  }
+}
+
+export async function checkFavoriteStatusAction(propertyId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { isFavorite: false };
+
+  // Resolve client. First try by session ID
+  let { data: clientData } = await supabaseAdmin
+    .from('clients')
+    .select('id')
+    .eq('user_id', session.user.id)
+    .single();
+
+  if (!clientData && session.user.email) {
+    // Fallback: try to find user by email, then client
+    const { data: userByEmail } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', session.user.email)
+      .single();
+
+    if (userByEmail) {
+      const { data: clientByEmailUser } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('user_id', userByEmail.id)
+        .single();
+      clientData = clientByEmailUser;
+    }
+  }
+
+  if (!clientData) return { isFavorite: false };
+
+  const { data } = await supabaseAdmin
+    .from('client_favorites')
+    .select('real_estate_id')
+    .eq('client_id', clientData.id)
+    .eq('real_estate_id', propertyId)
+    .single();
+
+  return { isFavorite: !!data };
+}
+
+export async function getFavoritesIdsAction() {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+
+  // Resolve client. First try by session ID
+  let { data: clientData } = await supabaseAdmin
+    .from('clients')
+    .select('id')
+    .eq('user_id', session.user.id)
+    .single();
+
+  if (!clientData && session.user.email) {
+    // Fallback: try to find user by email, then client
+    const { data: userByEmail } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', session.user.email)
+      .single();
+
+    if (userByEmail) {
+      const { data: clientByEmailUser } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('user_id', userByEmail.id)
+        .single();
+      clientData = clientByEmailUser;
+    }
+  }
+
+  if (!clientData) return [];
+
+  const { data } = await supabaseAdmin
+    .from('client_favorites')
+    .select('real_estate_id')
+    .eq('client_id', clientData.id);
+
+  return data?.map(f => f.real_estate_id) || [];
+}

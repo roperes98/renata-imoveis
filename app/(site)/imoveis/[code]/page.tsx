@@ -21,6 +21,7 @@ import { MdOutlinePets, MdOutlineWbSunny, MdOutlineLocalFireDepartment, MdOutlin
 import PropertyIdCopy from "@/app/components/PropertyIdCopy";
 import { LuCopy } from "react-icons/lu";
 import { BiWalk } from "react-icons/bi";
+import FavoriteButton from "@/app/components/FavoriteButton";
 import { IoBedOutline, IoCarSportOutline } from "react-icons/io5";
 import { PiBathtub } from "react-icons/pi";
 import { TfiRulerAlt2 } from "react-icons/tfi";
@@ -246,9 +247,7 @@ export default async function PropertyDetailPage({
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  <button className="p-3 rounded-full border border-gray-200 text-gray-400 hover:text-[#960000] hover:border-[#960000] hover:cursor-pointer transition-all self-end md:self-start">
-                    <FiHeart size={20} />
-                  </button>
+                  <FavoriteButton propertyId={property.id} />
 
                   <ShareButton
                     title={property.code}

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { FaUserCircle, FaSignOutAlt, FaHeart, FaTachometerAlt } from "react-icons/fa";
 import { logout } from "@/app/lib/actions";
+import { PiSiren } from "react-icons/pi";
 
 export default function Header({ user }: { user?: any }) {
   const pathname = usePathname();
@@ -87,6 +88,13 @@ export default function Header({ user }: { user?: any }) {
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <FaHeart className="mr-2" /> Favoritos
+                      </Link>
+                      <Link
+                        href="/alertas"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#960000]"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <PiSiren className="mr-2" /> Alertas
                       </Link>
                       <button
                         onClick={() => logout()}

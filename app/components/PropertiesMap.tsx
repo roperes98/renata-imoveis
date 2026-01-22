@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Polyline, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
@@ -14,12 +14,82 @@ import { useEffect, useRef, useState } from "react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 
 // ... existing imports
+import { isPointInPolygon } from "../lib/utils/geo";
 
 interface PropertiesMapProps {
   properties: RealEstate[]; // Filtered/Active properties
   allProperties?: RealEstate[]; // All properties for map
   autoFocus?: boolean;
   isFiltering?: boolean;
+  isDrawing?: boolean;
+  filterPolygon?: { lat: number; lng: number }[] | null;
+  onPolygonComplete?: (polygon: { lat: number; lng: number }[]) => void;
+  favorites?: string[];
+  showFavorites?: boolean;
+}
+
+function DrawingController({
+  isDrawing,
+  onPolygonComplete,
+}: {
+  isDrawing: boolean;
+  onPolygonComplete?: (polygon: { lat: number; lng: number }[]) => void;
+}) {
+  const [points, setPoints] = useState<{ lat: number; lng: number }[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const map = useMap();
+
+  useMapEvents({
+    mousedown(e) {
+      if (!isDrawing) return;
+
+      // Prevent default map dragging behavior
+      map.dragging.disable();
+      setIsDragging(true);
+      setPoints([{ lat: e.latlng.lat, lng: e.latlng.lng }]);
+    },
+    mousemove(e) {
+      if (!isDrawing || !isDragging) return;
+
+      const newPoint = { lat: e.latlng.lat, lng: e.latlng.lng };
+
+      // Optional: Throttle points or check distance to reduce point count if needed
+      setPoints((prev) => [...prev, newPoint]);
+    },
+    mouseup() {
+      if (!isDrawing || !isDragging) return;
+
+      setIsDragging(false);
+      map.dragging.enable();
+
+      if (points.length > 2) {
+        onPolygonComplete?.(points);
+        setPoints([]); // Clear points after completing
+      } else {
+        // Too few points, maybe just a click? Clear.
+        setPoints([]);
+      }
+    }
+  });
+
+  // Ensure dragging is re-enabled if component unmounts or state changes weirdly
+  useEffect(() => {
+    if (!isDrawing) {
+      map.dragging.enable();
+      setIsDragging(false);
+      setPoints([]);
+    }
+  }, [isDrawing, map]);
+
+  if (!isDrawing) return null;
+
+  return (
+    <>
+      {points.length > 0 && (
+        <Polyline positions={points.map(p => [p.lat, p.lng])} color="red" />
+      )}
+    </>
+  );
 }
 
 function MapController({ properties, autoFocus }: { properties: RealEstate[], autoFocus: boolean }) {
@@ -39,7 +109,17 @@ function MapController({ properties, autoFocus }: { properties: RealEstate[], au
   return null;
 }
 
-export default function PropertiesMap({ properties, allProperties = [], autoFocus = false, isFiltering = false }: PropertiesMapProps) {
+export default function PropertiesMap({
+  properties,
+  allProperties = [],
+  autoFocus = false,
+  isFiltering = false,
+  isDrawing = false,
+  filterPolygon = null,
+  onPolygonComplete,
+  favorites = [],
+  showFavorites = false
+}: PropertiesMapProps) {
   // Center of Rio de Janeiro
   const defaultCenter = [-22.9068, -43.1729] as [number, number];
   const [clickedId, setClickedId] = useState<string | null>(null);
@@ -49,38 +129,52 @@ export default function PropertiesMap({ properties, allProperties = [], autoFocu
     setClickedId(null);
   }, [properties]);
 
-  // Use allProperties if available (for displaying all pins), otherwise use only filtered properties.
-  const displayProperties = allProperties.length > 0 ? allProperties : properties;
+  // Use allProperties if available (for displaying all pins), UNLESS we are using a polygon filter.
+  // If polygon is active, we only want to show the filtered properties (Inside + Nearby).
+  const displayProperties = (allProperties.length > 0 && !filterPolygon) ? allProperties : properties;
 
   // Create a set of active property IDs for fast lookup
   const activeIds = new Set(properties.map(p => p.id));
 
   // Determine if we are in a "filtered state" (where some things might be transparent)
-  // We are in filtered state only if WE ARE FILTERING, we have allProperties AND the filtered list is smaller than allProperties
-  const isFilteredState = isFiltering && allProperties.length > 0 && properties.length < allProperties.length;
+  // We are in filtered state if we are filtering OR checking polygon OR showing favorites
+  const isFilteredState = isFiltering || !!filterPolygon || showFavorites;
+
+
 
   // Function to check if a specific ID should be treated as "active" (opaque)
-  const isIdActive = (id: string) => {
+  const isIdActive = (id: string, lat?: number, lng?: number) => {
     if (!isFilteredState) return true; // If not filtering, everything is active
-    return activeIds.has(id) || clickedId === id;
+
+    // Check favorites FIRST
+    if (showFavorites) {
+      return favorites.includes(id);
+    }
+
+    if (clickedId === id) return true;
+
+    // Check polygon inclusion
+    if (filterPolygon && lat && lng) {
+      // If polygon exists, we want to highlight ONLY what is inside.
+      // Items in the list (nearby) should be visible but transparent (so return false here).
+      // Items strictly inside -> true.
+      return isPointInPolygon({ lat, lng }, filterPolygon);
+    }
+
+    // Fallback if no polygon (normal filters)
+    // If not filtering by polygon, opacity is determined by activeIds (the filtered result)
+    return activeIds.has(id);
   };
 
   // Filter valid properties (must have coords)
   const validProperties = displayProperties.filter(p => p.address_lat && p.address_lng);
 
-  const createClusterCustomIcon = function (cluster: any) {
-    const markers = cluster.getAllChildMarkers();
-    // Check if any marker in the cluster is active
-    // We rely on the marker having a 'title' attribute set to the property ID
-    const hasActiveMarker = markers.some((marker: any) => {
-      const id = marker.options.title;
-      return id && isIdActive(id);
-    });
+  // Separate properties into active and inactive lists
+  const activePropertiesList = validProperties.filter(p => isIdActive(p.id, p.address_lat!, p.address_lng!));
+  const inactivePropertiesList = validProperties.filter(p => !isIdActive(p.id, p.address_lat!, p.address_lng!));
 
-    // If filtered state is active and no marker in this cluster is active, reduce opacity
-    const isClusterOpacityReduced = isFilteredState && !hasActiveMarker;
-    const opacityClass = isClusterOpacityReduced ? "opacity-50" : "opacity-100";
-
+  const createClusterIcon = (cluster: any, isInactive: boolean) => {
+    const opacityClass = isInactive ? "opacity-50" : "opacity-100";
     return L.divIcon({
       html: `<span class="flex items-center justify-center w-full h-full bg-[#960000] text-white rounded-full font-bold border-2 border-white shadow-md text-sm ${opacityClass}">+${cluster.getChildCount()}</span>`,
       className: "custom-cluster-icon bg-transparent",
@@ -93,6 +187,7 @@ export default function PropertiesMap({ properties, allProperties = [], autoFocu
       <MapContainer
         center={defaultCenter}
         zoom={12}
+        minZoom={4}
         scrollWheelZoom={true}
         className="w-full h-full"
       >
@@ -102,25 +197,50 @@ export default function PropertiesMap({ properties, allProperties = [], autoFocu
         />
         <MapController properties={properties} autoFocus={autoFocus} />
 
-        <MarkerClusterGroup
-          chunkedLoading
-          iconCreateFunction={createClusterCustomIcon}
-        >
-          {validProperties.map((property, index) => {
-            const isActive = isIdActive(property.id);
-            const isOpacityReduced = !isActive;
+        <DrawingController isDrawing={isDrawing} onPolygonComplete={onPolygonComplete} />
 
-            return (
+        {filterPolygon && (
+          <Polygon
+            positions={filterPolygon.map(p => [p.lat, p.lng])}
+            pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.1 }}
+          />
+        )}
+
+        {/* Active Markers Group */}
+        <MarkerClusterGroup
+          key={`active-${isFilteredState}-${showFavorites}-${clickedId}-${activePropertiesList.length}`}
+          chunkedLoading
+          iconCreateFunction={(cluster: any) => createClusterIcon(cluster, false)}
+        >
+          {activePropertiesList.map((property) => (
+            <PropertyMarker
+              key={property.id}
+              property={property}
+              autoOpen={autoFocus && property.id === properties[0]?.id}
+              opacity={1}
+              onClick={() => setClickedId(property.id)}
+            />
+          ))}
+        </MarkerClusterGroup>
+
+        {/* Inactive Markers Group */}
+        {inactivePropertiesList.length > 0 && (
+          <MarkerClusterGroup
+            key={`inactive-${isFilteredState}-${showFavorites}-${clickedId}-${inactivePropertiesList.length}`}
+            chunkedLoading
+            iconCreateFunction={(cluster: any) => createClusterIcon(cluster, true)}
+          >
+            {inactivePropertiesList.map((property) => (
               <PropertyMarker
                 key={property.id}
                 property={property}
-                autoOpen={autoFocus && property.id === properties[0]?.id}
-                opacity={isOpacityReduced ? 0.5 : 1}
+                autoOpen={false}
+                opacity={0.5}
                 onClick={() => setClickedId(property.id)}
               />
-            );
-          })}
-        </MarkerClusterGroup>
+            ))}
+          </MarkerClusterGroup>
+        )}
       </MapContainer>
     </div>
   );

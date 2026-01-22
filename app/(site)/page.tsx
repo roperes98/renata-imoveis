@@ -449,6 +449,56 @@ export default async function Home() {
           </div>
         </section>
 
+        <section className="py-16 bg-[#fafafa]">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-between items-center mb-12">
+              <h2 className="text-3xl font-bold text-[#1e1e1e]">
+                Salas em Destaque
+              </h2>
+              <Link
+                href="/imoveis"
+                className="group relative text-sm text-gray-outline font-semibold border border-gray-outline px-[22px] py-[10px] rounded-lg flex items-center gap-2 overflow-hidden transition-all duration-300 hover:border-[#960000]"
+              >
+                <span className="relative z-10 flex items-center gap-2 group-hover:text-[#fafafa] transition-colors duration-300">
+                  Ver todos
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 10 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="flex-shrink-0"
+                  >
+                    <path
+                      d="M5.5 12L10.5 8L5.5 4"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="absolute inset-0 bg-[#960000] transform origin-right scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-in-out"></span>
+              </Link>
+            </div>
+            <Carousel>
+              {featuredProperties.map((property: RealEstate, index: number) => {
+                const imageUrl = property.images?.[0]?.url || null;
+
+                return (
+                  <PropertyCard
+                    key={property.id}
+                    property={property}
+                    imageUrl={imageUrl}
+                    index={index}
+                    className="w-[276px]"
+                  />
+                );
+              })}
+            </Carousel>
+          </div>
+        </section>
+
         {/* Google Reviews */}
         <section className="py-16 bg-white">
           <div className="container mx-auto px-4">
