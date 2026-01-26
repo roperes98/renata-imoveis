@@ -23,6 +23,7 @@ interface PropertiesMapProps {
   isFiltering?: boolean;
   isDrawing?: boolean;
   filterPolygon?: { lat: number; lng: number }[] | null;
+  highlightPolygons?: any[]; // Keep it loose or specific if L types available
   onPolygonComplete?: (polygon: { lat: number; lng: number }[]) => void;
   favorites?: string[];
   showFavorites?: boolean;
@@ -116,6 +117,7 @@ export default function PropertiesMap({
   isFiltering = false,
   isDrawing = false,
   filterPolygon = null,
+  highlightPolygons = [],
   onPolygonComplete,
   favorites = [],
   showFavorites = false
@@ -205,6 +207,14 @@ export default function PropertiesMap({
             pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.1 }}
           />
         )}
+
+        {highlightPolygons.map((polygon, index) => (
+          <Polygon
+            key={`highlight-${index}`}
+            positions={polygon as any} // Leaflet handles MultiPolygon structure if passed correctly as nested arrays
+            pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.1, weight: 2 }}
+          />
+        ))}
 
         {/* Active Markers Group */}
         <MarkerClusterGroup

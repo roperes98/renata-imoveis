@@ -96,6 +96,71 @@ export default function PropertiesList({
     { label: "Alto Padrão", value: "high_standard_finishing" },
   ];
 
+  /* --- Neighborhood Hierarchy Configuration --- */
+  // Define Parent -> Children relationship
+  // Parent MUST be in the GeoJSON to provide a polygon for children
+  const NEIGHBORHOOD_HIERARCHY: Record<string, string[]> = {
+    "Tijuca": ["Usina", "Muda", "Andaraí", "Maracanã", "Vila Isabel"],
+    "Barra da Tijuca": ["Jardim Oceânico", "Barrinha", "Ilha da Gigóia", "Joá"],
+    "Recreio dos Bandeirantes": ["Pontal", "Terreirão"],
+    "Copacabana": ["Leme"],
+    "Botafogo": ["Urca", "Humaitá"],
+    "Leblon": ["Jardim de Alah"],
+    "Ipanema": ["Arpoador"],
+    // Add more as needed based on commonly accepted regions
+  };
+
+  // Compute children to parent map for reverse lookup
+  const CHILD_TO_PARENT: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    Object.entries(NEIGHBORHOOD_HIERARCHY).forEach(([parent, children]) => {
+      children.forEach(child => {
+        map[child] = parent;
+      });
+    });
+    return map;
+  }, []);
+
+  // Format neighborhoods into a flat list with depth for MultiCombobox
+  const neighborhoodOptions = useMemo(() => {
+    const flatOptions: { value: string; label: string; depth: number }[] = [];
+    const usedNeighborhoods = new Set<string>();
+
+    // 1. Process defined hierarchy
+    Object.entries(NEIGHBORHOOD_HIERARCHY).forEach(([parent, children]) => {
+      const parentExists = neighborhoods.includes(parent);
+      const activeChildren = children.filter(child => neighborhoods.includes(child));
+
+      // Only proceed if parent or children exist in the data
+      if (parentExists || activeChildren.length > 0) {
+        // Add Parent
+        if (parentExists) {
+          flatOptions.push({ value: parent, label: parent, depth: 0 });
+          usedNeighborhoods.add(parent);
+        }
+
+        // Add Children (indented if parent exists)
+        // If parent doesn't exist but children do, we list them at depth 0
+        const childDepth = parentExists ? 1 : 0;
+        activeChildren.forEach(child => {
+          flatOptions.push({ value: child, label: child, depth: childDepth });
+          usedNeighborhoods.add(child);
+        });
+      }
+    });
+
+    // 2. Add remaining neighborhoods
+    const remaining = neighborhoods
+      .filter(n => !usedNeighborhoods.has(n))
+      .sort((a, b) => a.localeCompare(b));
+
+    remaining.forEach(n => {
+      flatOptions.push({ value: n, label: n, depth: 0 });
+    });
+
+    return flatOptions;
+  }, [neighborhoods]);
+
   const handleQuickFilterToggle = (value: string) => {
     setSelectedQuickFilters(prev =>
       prev.includes(value)
@@ -110,6 +175,8 @@ export default function PropertiesList({
   const [filterPolygon, setFilterPolygon] = useState<{ lat: number; lng: number }[] | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+
+  // ... (rest of useEffects) ...
 
   // Initialize favorites from localStorage
   // Initialize favorites from server
@@ -149,12 +216,46 @@ export default function PropertiesList({
   };
 
   // Pagination State
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [isMobile, setIsMobile] = useState(false);
   const [totalItems, setTotalItems] = useState(totalCount);
+
+  // Determine items per page and isMobile based on screen width
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+
+      // 5 columns * 3 rows = 15 items (approx width > 1400px tailored for minmax(276px, 1fr))
+      // You can adjust the threshold 1400 based on actual grid behavior in CSS.
+      if (width >= 1450) {
+        setItemsPerPage(15);
+      } else {
+        setItemsPerPage(12);
+      }
+    };
+
+    // Initial check
+    handleResize();
+
+    const debouncedResize = debounce(handleResize, 200);
+    window.addEventListener("resize", debouncedResize);
+    return () => window.removeEventListener("resize", debouncedResize);
+  }, []);
+
+  function debounce(func: Function, wait: number) {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }
 
   const [properties, setProperties] = useState<RealEstate[]>(initialProperties);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false); // For infinite scroll appending
 
   // Debounce search query to avoid too many requests
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
@@ -188,7 +289,15 @@ export default function PropertiesList({
 
   useEffect(() => {
     async function filterProperties() {
-      setLoading(true);
+      // Determine if we are appending (mobile & page > 1) or replacing
+      const isAppending = isMobile && currentPage > 1;
+
+      if (isAppending) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
       try {
         let query = supabase
           .from("real_estate")
@@ -310,39 +419,31 @@ export default function PropertiesList({
           });
         }
 
-        setProperties(fetchedProperties);
-        // data count might be wrong if we filter client side, but since we are filtering the RESULTS of the query, 
-        // and pagination is handled by the query... wait.
-        // If we filter client side, pagination from server will be weird.
-        // However, for map view usually we want ALL properties. 
-        // But here loop is taking pages.
+        if (isAppending) {
+          setProperties(prev => {
+            const newIds = new Set(fetchedProperties.map(p => p.id));
+            // Filter out any fetched properties that supposedly might already exist (though unlikely with proper pagination, safety first)
+            // Actually, better to filter the *incoming* to ensure we don't add what we already have.
+            // Or better: Create a Map of existing + new to ensure uniqueness by ID.
+            const combined = [...prev, ...fetchedProperties];
+            const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+            return unique;
+          });
+        } else {
+          setProperties(fetchedProperties);
+        }
 
-        // If map view, usually we load ALL properties for the map pins (mapProperties), 
-        // but 'properties' state is used for the list/cards.
-
-        // If the user draws a lasso, we probably want to filter the visual results.
-        // If we are in map mode, we see all pins.
-        // If we filter, we want to see only pins inside.
-
-        // The `properties` state is what drives the list AND the map pins (via PropertiesMap props).
-
-        if (count !== null) setTotalItems(count); // This count is total from DB query, not after polygon. 
-        // Ideally update totalItems if polygon is active, but pagination makes this tricky.
-        // For now, let's assume if polygon is active we might ignore server pagination or just filter what we have.
-        // ACTUALLY, usually map search implies spatial search on DB or loading all.
-        // Given current architecture loads `mapProperties` (all) for the map component?
-        // Let's check props.
-        // `mapProperties` is passed to PropertiesList.
+        if (count !== null) setTotalItems(count);
 
       } catch (error) {
         console.error("Error filtering properties:", error);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     }
 
     // Only fetch if filters are changing from initial state or page changed
-    // We can assume initialProperties matches "newest" sorting and no filters and page 1
     const isInitialState =
       !debouncedSearch &&
       selectedNeighborhoods.length === 0 &&
@@ -359,12 +460,15 @@ export default function PropertiesList({
       !parkingSpaces &&
       currentPage === 1 &&
       sortOption === "newest" &&
-      viewMode === "list"; // Also consider viewMode
+      viewMode === "list";
 
-    if (!isInitialState) {
+    // If we need more items than initially loaded (e.g. 15 vs 12) and there are more items available,
+    // we must fetch, even if it looks like the "initial state".
+    const needsMoreItems = itemsPerPage > initialProperties.length && totalCount > initialProperties.length;
+
+    if (!isInitialState || needsMoreItems) {
       filterProperties();
     } else {
-      // Reset to initial properties if filters are cleared
       setProperties(initialProperties);
       setTotalItems(totalCount);
     }
@@ -385,14 +489,18 @@ export default function PropertiesList({
     parkingSpaces,
     sortOption,
     currentPage,
-    viewMode
+    viewMode,
+    itemsPerPage, // Added dependency
+    isMobile // Added dependency to know if behavior should change
   ]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!isMobile) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const clearFilters = () => {
@@ -448,6 +556,85 @@ export default function PropertiesList({
   const hasActiveFilters = !!(debouncedSearch || activeAdvancedFilters || selectedQuickFilters.length > 0);
 
   const isSortActive = sortOption !== "newest";
+
+  // --- Neighborhood Highlighting Logic ---
+  const [geoJsonData, setGeoJsonData] = useState<any>(null);
+  const [neighborhoodPolygons, setNeighborhoodPolygons] = useState<any[]>([]);
+
+  // Fetch GeoJSON on mount
+  useEffect(() => {
+    async function loadGeoJson() {
+      try {
+        const response = await fetch("/data/bairros_rio_de_janeiro.geojson");
+        if (!response.ok) throw new Error("Failed to load GeoJSON");
+        const data = await response.json();
+        setGeoJsonData(data);
+      } catch (error) {
+        console.error("Error loading neighborhood data:", error);
+      }
+    }
+    loadGeoJson();
+  }, []);
+
+  // Update polygons when selection changes
+  useEffect(() => {
+    if (!geoJsonData || selectedNeighborhoods.length === 0) {
+      setNeighborhoodPolygons([]);
+      return;
+    }
+
+    const polygons: any[] = [];
+    const processedNeighborhoods = new Set<string>();
+
+    selectedNeighborhoods.forEach(neighborhood => {
+      // Logic:
+      // 1. Try to find direct match in GeoJSON.
+      // 2. If no direct match, look up parent.
+      // 3. If parent found, use parent's polygon (if not already added).
+
+      let targetNeighborhood = neighborhood;
+      let feature = geoJsonData.features.find(
+        (f: any) => f.properties.nome.toLowerCase() === neighborhood.toLowerCase()
+      );
+
+      if (!feature) {
+        // Not found, check hierarchy
+        const parent = CHILD_TO_PARENT[neighborhood];
+        if (parent) {
+          // It's a child, try to find parent feature
+          const parentFeature = geoJsonData.features.find(
+            (f: any) => f.properties.nome.toLowerCase() === parent.toLowerCase()
+          );
+          if (parentFeature) {
+            feature = parentFeature;
+            targetNeighborhood = parent;
+          }
+        }
+      }
+
+      // If we found a feature (either direct or parent) and haven't processed it yet
+      if (feature && feature.geometry && !processedNeighborhoods.has(targetNeighborhood)) {
+        processedNeighborhoods.add(targetNeighborhood);
+
+        const flipCoords = (coords: any[]): any => {
+          if (typeof coords[0] === 'number') {
+            return [coords[1], coords[0]]; // Flip [lng, lat] to [lat, lng]
+          }
+          return coords.map(flipCoords);
+        };
+
+        if (feature.geometry.type === 'Polygon') {
+          polygons.push(flipCoords(feature.geometry.coordinates));
+        } else if (feature.geometry.type === 'MultiPolygon') {
+          feature.geometry.coordinates.forEach((polyCoords: any) => {
+            polygons.push(flipCoords(polyCoords));
+          });
+        }
+      }
+    });
+
+    setNeighborhoodPolygons(polygons);
+  }, [geoJsonData, selectedNeighborhoods, CHILD_TO_PARENT]);
 
   return (
     <>
@@ -665,7 +852,7 @@ export default function PropertiesList({
                           <div className="space-y-1">
                             <Label htmlFor="neighborhood">Bairros</Label>
                             <MultiCombobox
-                              options={neighborhoods.map(n => ({ value: n, label: n }))}
+                              options={neighborhoodOptions}
                               value={selectedNeighborhoods}
                               onChange={setSelectedNeighborhoods}
                               placeholder="Selecione bairros"
@@ -1032,6 +1219,7 @@ export default function PropertiesList({
               isFiltering={hasActiveFilters}
               isDrawing={isDrawing}
               filterPolygon={filterPolygon}
+              highlightPolygons={neighborhoodPolygons}
               onPolygonComplete={(poly) => {
                 setFilterPolygon(poly);
                 setIsDrawing(false);
@@ -1084,8 +1272,37 @@ export default function PropertiesList({
                 </button>
               </div>
             )}
-            {/* Pagination */}
-            {!loading && totalItems > itemsPerPage && (
+            {/* Infinite Scroll Sentinel for Mobile */}
+            {isMobile && !loading && properties.length < totalItems && (
+              <div
+                className="w-full py-8 flex justify-center"
+                ref={(node) => {
+                  if (!node || loadingMore) return;
+                  const observer = new IntersectionObserver(
+                    (entries) => {
+                      if (entries[0].isIntersecting) {
+                        handlePageChange(currentPage + 1);
+                      }
+                    },
+                    { threshold: 0.1, rootMargin: '928px' }
+                  );
+                  observer.observe(node);
+                  return () => observer.disconnect();
+                }}
+              >
+                {loadingMore ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-6 h-6 border-2 border-[#960000] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-gray-500">Carregando mais imóveis...</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-400">Role para ver mais</span>
+                )}
+              </div>
+            )}
+
+            {/* Pagination (Desktop Only) */}
+            {!isMobile && !loading && totalItems > itemsPerPage && (
               <div className="mt-12">
                 <Pagination>
                   <PaginationContent>

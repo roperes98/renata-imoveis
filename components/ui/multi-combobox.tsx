@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 
@@ -20,8 +18,14 @@ import {
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 
+export type Option = {
+  value: string
+  label: string
+  depth?: number // Level of indentation (0, 1, 2...)
+}
+
 interface MultiComboboxProps {
-  options: { value: string; label: string }[]
+  options: Option[]
   value?: string[]
   onChange: (value: string[]) => void
   placeholder?: string
@@ -111,11 +115,13 @@ export function MultiCombobox({
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = value.includes(option.value);
+                const depth = option.depth || 0;
                 return (
                   <CommandItem
                     key={option.value}
                     value={option.label}
                     onSelect={() => handleSelect(option.value)}
+                    className={cn(depth > 0 && "ml-4 border-l-2 border-muted pl-2")}
                   >
                     <div
                       className={cn(
