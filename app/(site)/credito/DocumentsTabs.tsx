@@ -149,7 +149,7 @@ export default function DocumentsTabs() {
                       <p className="text-[#1e1e1e] text-base font-bold mb-1">
                         {doc.text}
                       </p>
-                      <p className="text-[#1e1e1e]/70 text-xs leading-snug line-clamp-3">
+                      <p className="text-[#1e1e1e]/70 text-xs leading-snug line-clamp-3 h-[50px]">
                         {doc.description}
                       </p>
                     </div>
