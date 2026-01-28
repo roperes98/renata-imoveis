@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { MaterialImageMask } from "@/components/ui/material-image-mask";
 import { Label } from "@/components/ui/label";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, InfoIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Combobox } from "@/components/ui/combobox";
@@ -67,6 +67,7 @@ const banks: BankSimulation[] = [
 ];
 
 import { IbgeUF } from "@/app/lib/types/database";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Deleted static ufs array
 
@@ -383,7 +384,7 @@ export default function SimulacaoPage() {
                 const result = calculateSimulation(bank);
                 return (
                   <Card key={bank.name} className="overflow-hidden pt-0 border-gray-200 hover:shadow-xl transition-shadow duration-300">
-                    <CardHeader className="pb-4 pt-6 bg-gray-50 border-b border-gray-100 flex flex-col items-center">
+                    <CardHeader className="h-[158px] pb-4 pt-6 bg-gray-50 border-b border-gray-100 flex flex-col items-center">
                       <div className="mb-2">
                         {/* Fallback simple text if image fails, otherwise use Image component properly */}
                         <Image
@@ -427,6 +428,14 @@ export default function SimulacaoPage() {
                 );
               })}
             </div>
+
+            <Alert className="mt-8">
+              <InfoIcon />
+              <AlertTitle>Atenção</AlertTitle>
+              <AlertDescription>
+                Os resultados dos nossos bancos parceiros são uma simulação: valores, prazos e taxas podem variar de acordo com o perfil de crédito de cada cliente.
+              </AlertDescription>
+            </Alert>
           </div>
         )}
       </section>

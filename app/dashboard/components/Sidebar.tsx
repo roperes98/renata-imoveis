@@ -82,6 +82,18 @@ export default function Sidebar({ isCollapsed = false, toggleSidebar }: SidebarP
 
         {/* Bottom Actions */}
         <div className={`border-t border-white/20 p-4 space-y-2 ${isCollapsed ? "flex flex-col items-center" : ""}`}>
+          <Link
+            href="/dashboard/ajustes"
+            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${isActive("/dashboard/ajustes")
+              ? "bg-white text-[#960000]"
+              : "text-white hover:bg-white/10"
+              } ${isCollapsed ? "justify-center" : ""}`}
+            title={isCollapsed ? "Ajustes" : ""}
+          >
+            <FaCog className="text-xl" />
+            {!isCollapsed && <span className={`${isActive("/dashboard/ajustes") ? "font-bold" : ""}`}>Ajustes</span>}
+          </Link>
+
           <Popover>
             <PopoverTrigger asChild>
               <button className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors ${isCollapsed ? "justify-center" : ""}`}>
